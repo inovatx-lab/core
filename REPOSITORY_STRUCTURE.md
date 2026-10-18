@@ -21,6 +21,7 @@ INOVEXA/
     ├── inovatx_phase0_decision_log.md
     ├── inovatx_product_requirements_document_prd.md
     ├── inovatx_project_todo.md
+    ├── inovatx_review_quality_gates.md
     ├── inovatx_task_traceability_template.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth

@@ -136,6 +136,8 @@ Milestone 0.1: Project is formally scoped and protected from drift.
 - Task 0.3.3: Define review and quality gates.
   - Deliverable: code review rubric and validation checklist
   - Evidence: reviewed checklist for each milestone
+  - Status: Complete at Phase 0 governance level; defines intended gates, not configured CI or implementation authorization.
+  - Completion evidence: `inovatx_review_quality_gates.md` defines blocking review criteria, a task/PR validation checklist, and tailored entry/exit checklists for all eight roadmap milestones.
 
 ### Phase 0 Exit Criteria
 - Repo structure exists and is stable.
