@@ -14,6 +14,7 @@ INOVEXA/
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
     ├── inovatx_architecture_baseline.md
+    ├── inovatx_ai_coding_guardrails.md
     ├── inovatx_cost_capacity_failure_analysis.md
     ├── inovatx_executive_signoff_gate.md
     ├── inovatx_environment_baseline.md
@@ -21,6 +22,7 @@ INOVEXA/
     ├── inovatx_product_requirements_document_prd.md
     ├── inovatx_project_todo.md
     ├── inovatx_uml.md
+    ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
         ├── INOVEXA Core PRD.docx
         ├── INOVATX_Project_Map.pptx
