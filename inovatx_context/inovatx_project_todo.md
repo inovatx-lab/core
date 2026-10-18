@@ -131,6 +131,8 @@ Milestone 0.1: Project is formally scoped and protected from drift.
 - Task 0.3.2: Define task-to-requirement traceability template.
   - Deliverable: task traceability format
   - Evidence: examples for each task
+  - Status: Complete at Phase 0 planning level; mappings for future tasks are not authorization.
+  - Completion evidence: `inovatx_task_traceability_template.md` provides a reusable task record and initial PRD/UML mapping entries for all 63 tasks currently listed in this roadmap, distinguishing direct from derived traceability.
 - Task 0.3.3: Define review and quality gates.
   - Deliverable: code review rubric and validation checklist
   - Evidence: reviewed checklist for each milestone
