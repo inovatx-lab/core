@@ -127,7 +127,7 @@ Milestone 0.1: Project is formally scoped and protected from drift.
   - Deliverable: AI usage rules document
   - Evidence: developer checklist and code generation protocol
   - Status: Complete at Phase 0 governance level; does not authorize product implementation.
-  - Completion evidence: `inovatx_ai_coding_guardrails.md` defines source grounding, privacy and security rules, a developer checklist, a bounded code-generation protocol, and phase-lock/escalation rules.
+  - Completion evidence: `inovatx_ai_coding_guardrails.md` defines source grounding, privacy and security rules, a developer checklist, a bounded code-generation protocol, and phase-lock/escalation rules. Root `AGENTS.md` makes the guardrails mandatory context for project work and links the traceability and review gates.
 - Task 0.3.2: Define task-to-requirement traceability template.
   - Deliverable: task traceability format
   - Evidence: examples for each task

@@ -11,8 +11,18 @@ Before implementation, consult the project documents in `inovatx_context/`:
 5. [Executive sign-off gate](inovatx_context/inovatx_executive_signoff_gate.md) — authorization boundary and phase approval requirements.
 6. [Completion checklist](inovatx_context/inovatx_completion_checklist.md) — first-client scope, architecture, security, and readiness gates.
 7. [Cost, capacity, and failure analysis](inovatx_context/inovatx_cost_capacity_failure_analysis.md) — estimates, assumptions, risks, and items requiring validation.
+8. [AI coding guardrails](inovatx_context/inovatx_ai_coding_guardrails.md) — mandatory AI-use rules, developer checklist, code-generation protocol, and phase lock.
+9. [Task traceability template](inovatx_context/inovatx_task_traceability_template.md) — required task-to-PRD/UML mapping format and roadmap mapping index.
+10. [Review and quality gates](inovatx_context/inovatx_review_quality_gates.md) — code review rubric, validation checklist, and milestone gates.
 
 Use [BRANCH_POLICY.md](BRANCH_POLICY.md) for branch, commit, and CI conventions, and [REPOSITORY_STRUCTURE.md](REPOSITORY_STRUCTURE.md) for the intended repository layout. Treat the context documents as planning and requirements sources, not proof that the described application or infrastructure already exists.
+
+## Mandatory AI and task guardrails
+
+- Before AI-assisted project work, read and follow the AI coding guardrails, task traceability template, and review/quality gates listed above. These documents are mandatory project instructions, not optional reference material.
+- Every task must have a completed traceability record before work begins and review/validation evidence before it is marked complete. Use the roadmap mapping index as a starting point, not as authorization for future tasks.
+- The active phase and task remain the scope boundary. AI assistance, a completed checklist, or an approved decision does not authorize work in a later phase; require the applicable phase-exit evidence and explicit authorization.
+- When these instructions conflict with a project source or an approval gate, stop the affected work and request clarification. Do not infer an approval or waive a gate.
 
 ## Scope and decision rules
 

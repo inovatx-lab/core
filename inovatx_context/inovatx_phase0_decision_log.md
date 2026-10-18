@@ -2,7 +2,35 @@
 
 **Phase:** 0 — Project Setup, Guardrails, and Baseline Architecture  
 **Decision Date:** 2026-10-14  
-**Status:** Decisions for Executive Approval
+**Status:** All 19 decision areas approved by executive sign-off
+
+**Approval record:** The project owner has confirmed that the executive approved and signed this decision log. The signed approval instrument is not embedded in this Markdown file or the supplied Word reference; signer name and approval date are therefore not transcribed here. The approval status below records the project owner's confirmation and does not reproduce a signature.
+
+## Executive Approval Register
+
+| Decision | Executive status |
+|---|---|
+| D1: Provisioning Lifecycle States | [x] Approved |
+| D2: AI Allowance Exhaustion Response | [x] Approved |
+| D3: Interaction-to-Token Reconciliation | [x] Approved |
+| D4: Critical vs. Non-Critical AI Classification | [x] Approved |
+| D5: Mastery Score Sourcing | [x] Approved |
+| D6: Webhook Retry Cap and Dead-Letter Handling | [x] Approved |
+| D7: Idempotency Key Scope and TTL | [x] Approved |
+| D8: Payment Reconciliation | [x] Approved |
+| D9: SLOs with Concrete Targets | [x] Approved |
+| D10: VPS Sizing | [x] Approved |
+| D11: Backup, Restore, Rollback Procedures | [x] Approved |
+| D12: Monitoring and Alerting | [x] Approved |
+| D13: Log Retention | [x] Approved |
+| D14: Secrets Rotation | [x] Approved |
+| D15: Provisioning SLO Measurement Boundaries | [x] Approved |
+| D16: AI First-Token Latency SLO Measurement Boundaries | [x] Approved |
+| D17: AI Monthly Allowance Amount | [x] Approved |
+| D18: Provisioning SLO vs Retry Policy Resolution | [x] Approved |
+| D19: Browser-Observed AI Latency Tracking | [x] Approved |
+
+The approved answers below record the adopted decisions. This register reflects the executive approval reported by the project owner; it is not a substitute for retaining the signed source record.
 
 ---
 
