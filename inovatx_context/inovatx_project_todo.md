@@ -114,6 +114,8 @@ Milestone 0.1: Project is formally scoped and protected from drift.
 - Task 0.2.2: Establish environment baseline for Django, PostgreSQL, Redis, Moodle, and FastAPI.
   - Deliverable: environment inventory and container plan
   - Evidence: Docker Compose skeleton and service definitions
+  - Status: Complete at Phase 0 planning level; not a runnable deployment.
+  - Completion evidence: `inovatx_environment_baseline.md` records target versions, service roles, network boundaries, topology, and unresolved setup; root `docker-compose.yml` defines profile-gated planning services and persistent-volume/network placeholders. YAML syntax was validated; no services were built or started.
 - Task 0.2.3: Define the minimum viable architecture diagram with exact components and trust boundaries.
   - Deliverable: architecture baseline document
   - Evidence: diagram mapped to PRD and UML

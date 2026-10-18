@@ -9,11 +9,13 @@ INOVEXA/
 ├── AGENTS.md
 ├── BRANCH_POLICY.md
 ├── REPOSITORY_STRUCTURE.md
+├── docker-compose.yml           # Phase 0 planning skeleton; not runnable
 ├── .gitignore
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
     ├── inovatx_cost_capacity_failure_analysis.md
     ├── inovatx_executive_signoff_gate.md
+    ├── inovatx_environment_baseline.md
     ├── inovatx_phase0_decision_log.md
     ├── inovatx_product_requirements_document_prd.md
     ├── inovatx_project_todo.md
@@ -24,7 +26,7 @@ INOVEXA/
         └── Phase 0 Decision Log.docx
 ```
 
-The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative.
+The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack.
 
 ## Git and branches
 

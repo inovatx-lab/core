@@ -1,0 +1,88 @@
+# PLANNING ONLY — not a runnable deployment or implementation authorization.
+# All services are profile-gated. Images, configuration, bootstrap, and secrets
+# are incomplete; see inovatx_context/inovatx_environment_baseline.md.
+services:
+  nginx:
+    image: nginx:alpine
+    profiles: [planning]
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      django:
+        condition: service_started
+      moodle:
+        condition: service_started
+    networks:
+      - edge
+      - app
+
+  django:
+    image: inovatx/django-core:NOT_BUILT
+    profiles: [planning]
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - app
+      - data
+
+  celery:
+    image: inovatx/django-core:NOT_BUILT
+    profiles: [planning]
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      moodle:
+        condition: service_started
+    networks:
+      - app
+      - data
+
+  moodle:
+    image: inovatx/moodle:NOT_BUILT
+    profiles: [planning]
+    depends_on:
+      postgres:
+        condition: service_started
+    networks:
+      - app
+      - data
+
+  fastapi:
+    image: inovatx/fastapi-ai:NOT_BUILT
+    profiles: [planning]
+    networks:
+      - app
+
+  postgres:
+    image: postgres:16
+    profiles: [planning]
+    environment:
+      POSTGRES_DB: inovatx_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - data
+
+  redis:
+    image: redis:7
+    profiles: [planning]
+    volumes:
+      - redis_data:/data
+    networks:
+      - data
+
+networks:
+  edge:
+  app:
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
