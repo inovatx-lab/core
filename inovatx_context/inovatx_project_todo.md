@@ -119,6 +119,8 @@ Milestone 0.1: Project is formally scoped and protected from drift.
 - Task 0.2.3: Define the minimum viable architecture diagram with exact components and trust boundaries.
   - Deliverable: architecture baseline document
   - Evidence: diagram mapped to PRD and UML
+  - Status: Complete at Phase 0 logical-planning level; not a production deployment design.
+  - Completion evidence: `inovatx_architecture_baseline.md` defines the component and network trust boundaries, labels principal flows, traces elements to PRD sections and UML views, and records unresolved AI streaming and deployment concerns. Diagram/source mapping was checked; no services were started.
 
 ### Activity 0.3: Create AI and implementation guardrails
 - Task 0.3.1: Define AI coding guardrails and phase lock policy.

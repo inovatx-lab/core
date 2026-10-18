@@ -13,6 +13,7 @@ INOVEXA/
 ├── .gitignore
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
+    ├── inovatx_architecture_baseline.md
     ├── inovatx_cost_capacity_failure_analysis.md
     ├── inovatx_executive_signoff_gate.md
     ├── inovatx_environment_baseline.md
