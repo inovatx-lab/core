@@ -160,6 +160,8 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Task 1.1.1: Finalize `Organization`, `UserProfile`, and `SubscriptionLicense` structure.
   - Deliverable: approved domain model for the required entities
   - Evidence: schema and field definitions aligned with PRD
+  - Status: Complete; project owner approved the domain model on 2026-10-25.
+  - Evidence location: `inovatx_context/inovatx_phase1_core_domain_model.md` and `inovatx_context/inovatx_task_1_1_1_traceability.md`; UML and decision log aligned with the approved membership/license cardinalities.
 - Task 1.1.2: Define enums and constraints for org types, roles, and product codes.
   - Deliverable: enum taxonomy
   - Evidence: tables and validation rules

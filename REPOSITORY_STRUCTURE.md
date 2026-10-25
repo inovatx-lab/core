@@ -1,8 +1,8 @@
 # Repository Structure — INOVATX
 
-## Current Phase 0 workspace
+## Current documentation-first workspace
 
-This is the current documentation-first workspace layout. The product source tree and runtime infrastructure have not been created here; they must not be treated as existing implementation.
+This workspace currently contains project governance, architecture, and Phase 1 domain-specification documents. The product source tree and runtime infrastructure have not been created here; planning documents and model specifications must not be treated as implemented application code.
 
 ```text
 INOVEXA/
@@ -14,6 +14,7 @@ INOVEXA/
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
     ├── inovatx_phase0_exit_review.md
+    ├── inovatx_phase1_core_domain_model.md
     ├── inovatx_architecture_baseline.md
     ├── inovatx_ai_coding_guardrails.md
     ├── inovatx_cost_capacity_failure_analysis.md
@@ -24,6 +25,7 @@ INOVEXA/
     ├── inovatx_project_todo.md
     ├── inovatx_review_quality_gates.md
     ├── inovatx_task_traceability_template.md
+    ├── inovatx_task_1_1_1_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/

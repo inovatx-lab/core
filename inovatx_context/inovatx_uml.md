@@ -225,9 +225,10 @@ The ERD contains the entities and relationships explicitly described in the PRD.
 
 ```mermaid
  erDiagram
-    AUTH_USER ||--o{ USER_PROFILE : "referenced by user_id" 
-    ORGANIZATION ||--o{ USER_PROFILE : "has profiles" 
-    ORGANIZATION ||--o{ SUBSCRIPTION_LICENSE : "has licenses" 
+    AUTH_USER ||--o{ USER_PROFILE : "has organization memberships"
+    ORGANIZATION ||--o{ USER_PROFILE : "has memberships"
+    USER_PROFILE ||--o{ ORGANIZATION_MEMBERSHIP_ROLE : "has role assignments"
+    ORGANIZATION ||--o{ SUBSCRIPTION_LICENSE : "has product licenses"
 
     AUTH_USER {
         integer id PK
@@ -245,9 +246,13 @@ The ERD contains the entities and relationships explicitly described in the PRD.
         uuid id PK
         integer user_id FK
         uuid organization_id FK
-        enum role "org_admin | teacher | student | parent | sme_staff"
         varchar phone_number
         timestamp created_at
+    }
+
+    ORGANIZATION_MEMBERSHIP_ROLE {
+        uuid user_profile_id FK
+        enum role_code
     }
 
     SUBSCRIPTION_LICENSE {
@@ -256,15 +261,16 @@ The ERD contains the entities and relationships explicitly described in the PRD.
         enum product_code "EDTECH_LMS | CRM_BASIC | AI_PRO"
         integer seat_capacity
         varchar moodle_cohort_id "nullable"
-        bigint ai_token_monthly_allowance
-        bigint ai_tokens_used_current_month
+        enum status
+        integer ai_monthly_interaction_allowance_per_learner_seat
+        integer ai_daily_interaction_cap_per_learner_seat
         timestamp valid_until
     }
 ```
 
-**Database and isolation constraints:** the PRD places Django application data in PostgreSQL database `inovatx_db` with RLS and Moodle data in `moodle_db`. Tenant context is derived from `request.user.userprofile.organization_id`; middleware injects `app.current_organization_id` using `SET LOCAL`; tenant tables enable and force RLS; policies compare `organization_id` with the session setting; request teardown resets borrowed connections. `student_data` is used as an RLS example, but its schema and relationship are not defined.
+**Database and isolation constraints:** the PRD places Django application data in PostgreSQL database `inovatx_db` with RLS and Moodle data in `moodle_db`. Because a user may have memberships in multiple organizations, tenant context must be selected from an explicitly identified and validated `UserProfile` membership; the PRD's singular `request.user.userprofile.organization_id` example must not be implemented literally. Middleware injects the validated organization using `SET LOCAL`; tenant tables enable and force RLS; policies compare `organization_id` with the session setting; request teardown resets borrowed connections. Missing, invalid, or unauthorized membership context must fail closed. `student_data` is used as an RLS example, but its schema and relationship are not defined.
 
-**Cardinality caveat:** the organization foreign keys express one organization to many profiles/licenses. The PRD does not say whether `user_id` is unique, whether one auth user can have profiles in multiple organizations, or whether multiple profiles can be attached to the same auth user.
+**Resolved cardinality for Task 1.1.1:** one auth user may have memberships in multiple organizations, with at most one `UserProfile` per `(user_id, organization_id)`. One membership may have multiple organization-scoped role assignments. An organization may have multiple product licenses, with at most one current license per `(organization_id, product_code)`. These are recorded as project-owner decisions P1.1.1-D1 and P1.1.1-D2 in the Phase 0 decision log. Physical constraints, role enums, and lifecycle behavior remain assigned to their roadmap tasks.
 
 **Schema omissions, not added as requirements:** payments, invoices, renewals, refunds, parent-child links, branches, enrollment records, courses, quizzes, assessments, grades, AI interactions, token-usage ledger entries, audit events, and webhook deliveries. These may be necessary implementation entities, but the PRD does not specify them.
 
@@ -289,8 +295,11 @@ classDiagram
         +id: UUID
         +user_id: FK
         +organization_id: FK
-        +role: enum
         +phone_number: string
+    }
+    class OrganizationMembershipRole {
+        +user_profile_id: FK
+        +role_code: enum
     }
     class SubscriptionLicense {
         +id: UUID
@@ -298,8 +307,9 @@ classDiagram
         +product_code: enum
         +seat_capacity: integer
         +moodle_cohort_id: string?
-        +ai_token_monthly_allowance: bigint
-        +ai_tokens_used_current_month: bigint
+        +status: enum
+        +ai_monthly_interaction_allowance_per_learner_seat: integer
+        +ai_daily_interaction_cap_per_learner_seat: integer
         +valid_until: timestamp
     }
     class TenantContextMiddleware {
@@ -349,6 +359,7 @@ classDiagram
 
     DjangoCore --> Organization : manages
     DjangoCore --> UserProfile : manages
+    UserProfile --> OrganizationMembershipRole : assigned roles
     DjangoCore --> SubscriptionLicense : manages
     TenantContextMiddleware ..> DjangoCore : protects tenant requests
     MoodleProvisioningTask --> MoodleRESTClient : provisions through

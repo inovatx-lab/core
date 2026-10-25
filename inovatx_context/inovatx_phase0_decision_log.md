@@ -321,3 +321,27 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** The checklist includes completion criteria for later phases and launch, while the executive gate requires a separate exit review and approval for each phase. Applying those criteria at their respective gates avoids requiring future work to be complete before an earlier phase can begin, without waiving any independent pre-build approvals.
 
 **Impact:** Reviewers should assess only the checklist items applicable to the gate under review, keep all other items open, and record the applicable evidence and approvals. The Phase 0 exit review is recorded as approved; this does not grant Phase 1 authorization or claim that host-side branch protections are configured.
+
+---
+
+## Phase 1 Task 1.1.1 Decisions — Core Domain Model
+
+**Decision date:** 2026-10-25
+**Status:** Project-owner decisions for Task 1.1.1; domain model approved 2026-10-25
+**Approver:** Project owner, confirmed in the 2026-10-25 Task 1.1.1 planning interaction
+
+### P1.1.1-D1: User identity and organization membership
+
+**Decision:** Keep one global login identity and allow it to have memberships in multiple organizations. Represent each membership once per `(auth_user, organization)` pair. Allow multiple organization-scoped role assignments per membership; do not impose a student-only single-organization rule. The global `system_admin` role is not an organization membership role.
+
+**Rationale:** A person may be affiliated with multiple institutions, including as a parent or teacher, without needing duplicate login credentials. Organization-scoped membership provides the tenant context boundary while role assignments express that person's roles within each organization.
+
+**Impact:** `UserProfile` is modeled as an organization membership, unique by user and organization. A role-assignment association is required. The PRD's singular `request.user.userprofile.organization_id` example must be refined by Task 1.2.1 to explicitly select and validate a membership for each request; implementation must fail closed when context is missing or invalid.
+
+### P1.1.1-D2: Product-license cardinality and AI entitlement
+
+**Decision:** Model at most one current license per organization and product; different product licenses may coexist. A license stores configured per-learner-seat monthly and daily interaction entitlements. Under D17, the Learner tier values are 1,000 monthly interactions and 50 daily interactions per learner seat. Actual interactions, reservations, and provider-token usage belong in a separate usage ledger, not mutable usage counters on the license.
+
+**Rationale:** This distinguishes product entitlement from payment state and usage accounting, preserves multiple product entitlements, and follows approved D3/D17 interaction/token semantics.
+
+**Impact:** The license model does not include `ai_tokens_used_current_month`. Renewal/payment history and the physical enforcement of current-license uniqueness must be finalized with the subscription lifecycle and schema tasks before implementation.
