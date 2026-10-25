@@ -32,6 +32,7 @@ INOVEXA/
     ├── inovatx_task_1_1_2_traceability.md
     ├── inovatx_task_1_1_3_traceability.md
     ├── inovatx_task_1_2_1_traceability.md
+    ├── inovatx_task_1_2_2_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/

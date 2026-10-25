@@ -79,7 +79,7 @@ The project owner is recorded as IBRAHIM SSEMAKULA, and the review approval tabl
 | Learner-facing AI streaming path | Remains unresolved; no design is implied by Phase 0 closure | Product owner and technical/security owner | Resolve and approve before the dependent Phase 4 streaming task. |
 | LLM hosting/network boundary | Remains unresolved; no provider placement or egress route is implied | Technical/security owner | Resolve and approve before a dependent AI integration task. |
 | Service-to-service authentication | Remains unresolved; no credential or protocol is implied | Technical/security owner | Resolve and approve before implementing affected service integrations. |
-| Database bootstrap, application roles, and RLS setup | Remains unresolved; Phase 1 tasks may document the options, but must not implement an unapproved role/policy design | Technical/security owner | Resolve and approve before implementing the RLS baseline in Task 1.2.2. |
+| Database bootstrap, application roles, and RLS setup | Design approved under Task 1.2.2 decisions P1.2.2-D1–D4 on 2026-10-25; executable setup is pending | Project owner and technical/security owner | Implement after the Django schema and PostgreSQL test environment are available; Task 1.2.2 remains open until runtime-role isolation tests pass. |
 | Deployment/runtime details | Remain planning items; runnable full-stack deployment is outside this authorization | Technical owner | Resolve under its authorized roadmap task before deployment work. |
 
 This review does **not** require making the Compose stack runnable. That would change the approved Phase 0 scope and would require separate explicit authorization.

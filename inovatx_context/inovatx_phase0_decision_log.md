@@ -479,3 +479,49 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** The global role and tenant membership are distinct; cross-tenant access must not arise from an unstated bypass.
 
 **Impact:** The access-request, approval, grant, scope, duration, revocation, and audit workflow remains undefined and out of scope for Task 1.2.1. No support or impersonation access is authorized by this decision.
+
+## Phase 1 Task 1.2.2 Decisions — PostgreSQL RLS Baseline
+
+**Decision date:** 2026-10-25
+**Status:** RLS design approved; executable baseline and tests are blocked on the Django schema and PostgreSQL test environment
+**Approver:** Project owner and technical/security owner, confirmed in the 2026-10-25 Task 1.2.2 design interaction
+
+### P1.2.2-D1: Separate bootstrap, schema-owner, migration, and runtime authorities
+
+**Decision:** Use a controlled setup-only bootstrap authority; a `NOLOGIN` schema/object-owner role; a separate controlled migration identity that may activate the owner role for migrations; and one shared, least-privileged runtime identity for Django and Celery. Do not configure the bootstrap, owner, or migration credentials in runtime services. Runtime must not own tenant tables, assume owner privileges, or have `SUPERUSER`, `BYPASSRLS`, DDL, or role-management privileges.
+
+**Rationale:** Separate setup and schema-change authority from normal data access, so the runtime identity cannot bypass row security through ownership or elevated role attributes.
+
+**Impact:** Exact role identifiers, bootstrap commands, credential delivery, and deployment workflow remain implementation/deployment details. The runtime grant baseline is limited to `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the four approved Core tenant tables; exclude `TRUNCATE`, `REFERENCES`, `TRIGGER`, replication, DDL, ownership, and role management. The external Django authentication table and its grants are not selected by this decision.
+
+### P1.2.2-D2: RLS coverage and tenant predicates
+
+**Decision:** Enable and FORCE RLS on `Organization`, `UserProfile`, `OrganizationMembershipRole`, and `SubscriptionLicense`. Define runtime-targeted policies with both `USING` and `WITH CHECK`. Scope `Organization` by `id`, `UserProfile` and `SubscriptionLicense` by `organization_id`, and `OrganizationMembershipRole` through its parent `UserProfile.organization_id`. Do not add a redundant organization column to the approved role-assignment schema.
+
+**Rationale:** Apply the same tenant boundary to all four approved tenant-owned entities while preserving the schema and membership cardinality accepted in Tasks 1.1.1 and 1.1.3.
+
+**Impact:** Missing tenant context must match no rows and reject writes; malformed values must error rather than fall back to unscoped access. Physical table names and executable policy expressions depend on the Django model/app schema.
+
+### P1.2.2-D3: Runtime role test identity
+
+**Decision:** Execute tenant-isolation integration tests using the shared runtime identity, or an equivalent role with the same grants and without table ownership, owner exemption, or RLS bypass.
+
+**Rationale:** Tests under a superuser, `BYPASSRLS` identity, or unforced table owner would not verify the application's actual security boundary.
+
+**Impact:** Test coverage must include cross-tenant reads, cross-tenant insert/update rejection, missing context, membership-role relationship scoping, and transaction/connection reuse. Tests must run against the actual Django schema before Task 1.2.2 can be closed.
+
+### P1.2.2-D4: Custom-GUC threat boundary and global directory
+
+**Decision:** Retain the PRD's transaction-local `SET LOCAL app.current_organization_id` mechanism. Explicitly treat it as defense in depth for normal application paths, not as independent protection from arbitrary SQL executed with a compromised runtime credential, because the runtime role can set a custom GUC. Keep strict tenant-only RLS on `Organization`; `system_admin` receives no implicit cross-organization organization rows.
+
+**Rationale:** The existing PRD context mechanism is approved, but its security guarantee must not be overstated. The strict directory boundary preserves the Task 1.2.1 decision that global role status alone does not grant tenant-data access.
+
+**Impact:** Retain authenticated membership validation, parameterized ORM/query use, least-privilege database grants, and runtime-role RLS tests. Global CRM directory access remains a separate organization-authorized access/authorization dependency; this task adds no exception or access workflow.
+
+### P1.2.2-D5: Implementation dependency and task order
+
+**Decision:** Record and approve the RLS design now, but defer executable policies and tenant-isolation tests until the Django application/model schema and a PostgreSQL test environment are available. Proceed first to the authorized Task 1.3.1 and model prerequisites for Task 1.3.2, then return to Task 1.2.2.
+
+**Rationale:** The repository currently has no Django project or model tables, and the available environment has no PostgreSQL server/client or Docker. Fixture-only tests or guessed table names would not satisfy the actual-schema test requirement.
+
+**Impact:** Task 1.2.2 remains blocked and incomplete. Do not claim RLS implementation or passing tests until the actual schema suite passes under the runtime identity.

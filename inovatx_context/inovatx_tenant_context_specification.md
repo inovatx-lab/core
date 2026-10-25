@@ -56,7 +56,11 @@ If assistance requires access beyond the organization's normal roles and permiss
 
 The PRD specifies `SET LOCAL app.current_organization_id` for tenant context. The setting must be made within the transaction that performs tenant-owned database work and before the first such query. A connection-scoped or session-scoped tenant setting is not an acceptable substitute.
 
-RLS remains defense in depth alongside application authorization. The example `student_data` table and `inovatx_app_role` identifier in the PRD are illustrative, not approved schema or role decisions. Database bootstrap behavior, application roles, privileges, grants, policy targets, policy expressions, and RLS implementation remain unresolved. They must be approved before Task 1.2.2 implements the RLS baseline.
+RLS is defense in depth alongside application authorization. Task 1.2.2 decisions approve a controlled setup-only bootstrap authority, a `NOLOGIN` schema/object owner, a controlled migration identity, and one shared least-privileged runtime identity for Django/Celery. They also approve strict RLS coverage of the four initial Core tenant tables with both row-visibility and write-check predicates. Exact identifiers and executable expressions depend on the Django model schema. The PRD's `student_data` and `inovatx_app_role` are illustrative examples, not approved identifiers.
+
+The runtime identity can set a PostgreSQL custom GUC, so `SET LOCAL app.current_organization_id` does not independently protect against arbitrary SQL executed with a compromised runtime credential. The approved design retains this context mechanism for defense in depth on normal application paths and requires that its limitation be stated accurately.
+
+The RLS design is approved; executable role/grant setup, policies, and tests remain pending until the Django schema and PostgreSQL test environment are available. They must be implemented and verified under the runtime identity before Task 1.2.2 is complete.
 
 This document specifies the tenant-context contract at the application/database boundary only; it neither creates nor applies an RLS policy.
 
@@ -66,7 +70,7 @@ This document specifies the tenant-context contract at the application/database 
 - Task 1.2.3 defines the detailed fail-closed policy, including failure handling and observable behavior.
 - The route/header/session carrier is deferred to Task 1.3.3.
 - The detailed resource/action permission matrix and role policy are outside Task 1.2.1. A worker must not execute a user-originated operation if the applicable approved authorization decision cannot be made at execution time.
-- Database bootstrap, application database roles and grants, and RLS policy design remain unresolved dependencies for Task 1.2.2.
+- The bootstrap, application-role, and RLS policy design is approved in Task 1.2.2 decisions. Executable implementation remains blocked on the Django schema and PostgreSQL test environment.
 - The organization assistance workflow for any access beyond normal roles remains undefined and requires separate approval before implementation.
 
 ## 8. Implementation acceptance checks

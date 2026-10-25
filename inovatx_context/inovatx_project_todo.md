@@ -182,6 +182,8 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Task 1.2.2: Implement RLS baseline and DB tests for tenant isolation.
   - Deliverable: RLS policy baseline
   - Evidence: passing tenant isolation test suite
+  - Status: Blocked; RLS role and policy design approved 2026-10-25, but the Django schema and PostgreSQL test environment are not yet available. Project owner approved proceeding to Task 1.3.1 and model prerequisites for Task 1.3.2 before returning here.
+  - Evidence location: `inovatx_context/inovatx_task_1_2_2_traceability.md` and Task 1.2.2 decisions in `inovatx_context/inovatx_phase0_decision_log.md`.
 - Task 1.2.3: Define fail-closed behavior for missing tenant context.
   - Deliverable: tenant failure policy
   - Evidence: documented rule and tests

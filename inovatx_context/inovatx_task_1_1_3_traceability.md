@@ -22,7 +22,7 @@
 **Approved design sources:**
 - Task 1.1.1 domain model and Task 1.1.2 enum taxonomy.
 - Project-owner-confirmed Task 1.1.3 planning decisions below.
-- Phase 0 exit review: database bootstrap, application roles, and RLS setup remain unresolved; RLS implementation must wait for approved database role/policy design.
+- At Task 1.1.3 completion, database bootstrap, application roles, and RLS setup were unresolved. Task 1.2.2 later approved the role/policy design on 2026-10-25; its executable implementation remains pending the Django schema and PostgreSQL test environment.
 
 **Mapping classification:** Direct
 **Architecture component and trust boundary:** Django Core/PostgreSQL schema contract. Documentation only; no runtime database or application access is created or changed.
@@ -49,7 +49,7 @@
 - Initial baseline enforces one license row per `(organization_id, product_code)`; renewal history/versioning remains deferred to Task 2.2.1.
 - AI entitlement columns are nullable for non-`AI_PRO` products and required and positive for `AI_PRO`; D17 baseline is 1,000 monthly / 50 daily interactions per learner seat.
 - Store enum values as strings, using Django choices plus PostgreSQL CHECK constraints. Native PostgreSQL ENUM types are not used in the target baseline.
-- Do not decide database bootstrap, application database roles/privileges, or RLS. These remain blocked on the approval specified in the Phase 0 exit review and are dependencies of Task 1.2.2.
+- This task did not decide database bootstrap, application database roles/privileges, or RLS. Their design was subsequently approved under Task 1.2.2 decisions; executable RLS work remains a separate deliverable.
 - The deliverable is documentation-only. Executable migrations and schema checks are deferred to the authorized Django model/application tasks.
 
 ## Evidence and completion

@@ -95,7 +95,7 @@ Do not carry the PRD ERD's `ai_tokens_used_current_month` field into the license
 - **Task 1.1.2:** see the approved [enum taxonomy and logical validation rules](inovatx_core_enum_taxonomy.md).
 - **Task 1.1.3:** decide physical keys/unique constraints, migration representation, and database schema baseline.
 - **Task 1.2.1:** define how a request chooses and validates one of a user's memberships as active tenant context; do not use an implicit singular `request.user.userprofile`.
-- **Task 1.2.2:** implement RLS only after database role and policy design is approved. This model specification does not choose or implement those policies.
+- **Task 1.2.2:** implement the approved RLS design after the Django schema and PostgreSQL test environment are available. This model specification does not implement those policies.
 - **Task 2.1:** define role permissions and enforcement. The role association does not itself grant authorization.
 - **Task 2.2.1:** define license states, renewal/history semantics, and lifecycle transitions.
 - **Later parent/guardian scope:** parent-child links and the authorization path between a parent membership and a learner remain separate from merely holding a `parent` role.

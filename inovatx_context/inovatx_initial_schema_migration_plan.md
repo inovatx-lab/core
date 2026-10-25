@@ -10,7 +10,7 @@
 
 This document records the target relational schema for the initial Django Core domain and the order in which its schema changes should be applied once the Django application exists. It does not create executable migrations or claim that any database or schema currently exists.
 
-The approved target is PostgreSQL. Its logical tenant database is `inovatx_db`; this plan does not create databases, configure credentials, establish application roles or grants, or apply Row-Level Security (RLS). The Phase 0 exit review leaves database bootstrap/application roles and RLS role/policy design unresolved. Those decisions are prerequisites for the relevant implementation work; RLS implementation remains assigned to Task 1.2.2.
+The approved target is PostgreSQL. Its logical tenant database is `inovatx_db`; this plan does not create databases, configure credentials, establish application roles or grants, or apply Row-Level Security (RLS). The Phase 0 exit review initially left database bootstrap/application roles and RLS role/policy design unresolved. Task 1.2.2 subsequently approved that design; its executable implementation remains assigned to Task 1.2.2 and depends on the actual Django schema and a PostgreSQL test environment.
 
 The roadmap lists “migration files and schema checks” as evidence. For this task, the project owner confirmed a documentation-only deliverable: executable Django migration files and schema checks are deferred until the authorized Django skeleton/model tasks establish a runnable application and database environment.
 
@@ -70,7 +70,7 @@ Executable files are deferred. When the authorized Django application/model work
 4. **Create `OrganizationMembershipRole`:** UUID primary key, membership foreign key, role code, role-code CHECK, and unique membership/role constraint.
 5. **Create `SubscriptionLicense`:** UUID primary key, organization foreign key, product/status codes and CHECK constraints, positive capacity, nullable external Moodle cohort, reviewed `valid_until` nullability, conditional AI entitlement constraint, and unique organization/product constraint.
 6. **Review the complete migration graph and resulting schema:** check dependency ordering, constraint behavior, and forward/reverse operation on a disposable local PostgreSQL database when the application and database are available. This is evidence for the later executable migration task, not a test run claimed by this document.
-7. **Handle tenant security separately:** implement no RLS policy or application database grant as part of these schema steps. Task 1.2.2 may proceed only after the database role and policy design has been approved and its dependencies recorded.
+7. **Handle tenant security separately:** implement no RLS policy or application database grant as part of these schema steps. Task 1.2.2 owns the approved RLS design and its implementation after the Django schema and PostgreSQL test environment are available.
 
 The exact number of Django migration files is left to the application layout and dependency graph. Keep the schema changes reviewable and ordered by dependency; do not combine this plan with unrelated feature or lifecycle changes.
 
@@ -92,7 +92,7 @@ These do not change the approved logical domain model, but must be resolved befo
 4. Exact string-field lengths and any name normalization/length requirements.
 5. Foreign-key deletion behavior and any additional indexes based on the approved query patterns.
 6. PostgreSQL bootstrap, application database roles, and grants; do not assume privileges or owner role.
-7. RLS role/policy design, which must be approved before Task 1.2.2 implementation.
+7. RLS role/policy design, approved and recorded under Task 1.2.2 decisions; executable policy implementation awaits the Django schema and PostgreSQL test environment.
 8. Whether AI_PRO allowance values are stored as explicit per-license values or supplied by a later approved plan/default mechanism; the schema invariant is that both values are present and positive only for AI_PRO.
 
 No database bootstrap, credentials, role grants, RLS policy, license history, or payment model is selected by this document.
