@@ -123,3 +123,11 @@ ____________________________________________________________________________
 |  | Technical/security owner | [x] Go ☐ No-go ☐ Conditional go |  |  |
 
 **Gate rule:** No implementation begins until Phase 0 exit criteria are met and the next phase is explicitly authorized. No first-client activation occurs without a separate launch go/no-go approval.
+
+## Phase 1 authorization record
+
+**Decision date:** 2026-10-25
+**Approver:** IBRAHIM SSEMAKULA, Project Owner / Executive Sponsor
+**Decision:** Phase 1 authorized, limited to roadmap Tasks 1.1.1–1.3.3
+**Conditions:** This authorizes only Phase 1 deliverables. It does not authorize Phase 2+, production deployment, a runnable full-stack deployment, or launch. Any task that depends on an unresolved design decision must pause until that decision is approved.
+**Approval basis:** The project owner confirmed the authorization wording in the 2026-10-25 project review interaction. This does not amend the earlier Phase 0-only pre-build authorization; it records the separate subsequent phase authorization.

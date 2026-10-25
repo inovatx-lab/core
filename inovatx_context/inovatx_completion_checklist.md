@@ -53,7 +53,7 @@ This checklist is a phased approval gate. Each item must be explicitly approved 
 ## 4. PHASE GATE LOCK
 
 - Evaluate each phase completion item at that phase's exit. Do not mark a phase complete before its evidence and approval exist.
-- [ ] Phase 0 is complete: repo baseline, source-of-truth docs, project guardrails, AI-grounding rules, and exit criteria are signed off.
+- [x] Phase 0 is complete: repo baseline, source-of-truth docs, project guardrails, AI-grounding rules, and exit criteria are signed off. Exit approved 2026-10-25; see `inovatx_phase0_exit_review.md`. Host-side branch protection verification remains a bounded follow-up due before merging to `develop` or `main`.
 - [ ] Phase 1 is complete: model layer, migration baseline, tenant isolation baseline, and Django foundation are validated.
 - [ ] Phase 2 is complete: RBAC, onboarding, and subscription activation paths are validated.
 - [ ] Phase 3 is complete: Moodle provisioning and SSO are validated.
