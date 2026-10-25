@@ -15,7 +15,7 @@ Mark each item **Approved**, **Open**, or **Not applicable**. Any **Open** item 
 
 | Decision area | Required executive outcome | Status |
 |---|---|---|
-| First-client scope | Approve only the first-client MVP. Defer CRM expansion, project management, broader SME/NGO modules, and non-essential AI features. | ☐ Approved ☐ Open |
+| First-client scope | Approve only the first-client MVP. Defer CRM expansion beyond the limited CRM_BASIC first-client scope, project management, broader SME/NGO modules, and non-essential AI features. | ☐ Approved ☐ Open |
 | Roles and access | Approve global `system_admin`, tenant-scoped `org_admin`, and membership-scoped roles; authorization is checked by resource, action, and tenant. | ☐ Approved ☐ Open |
 | Lifecycle ownership | Require separate, defined lifecycles for organization, subscription/license, payment, and provisioning. | ☐ Approved ☐ Open |
 | AI allowance | Require an auditable interaction allowance distinct from provider-token usage, with defined pooling, exhaustion, reset, and fallback behavior. | ☐ Approved ☐ Open |
@@ -23,6 +23,8 @@ Mark each item **Approved**, **Open**, or **Not applicable**. Any **Open** item 
 | Events and webhooks | Require signed, versioned, idempotent, replay-safe event handling with observable retries and a recovery path. | ☐ Approved ☐ Open |
 | Tenant isolation | Require PostgreSQL RLS plus application authorization; tenant context is explicit in requests and worker tasks, and missing context fails closed. | ☐ Approved ☐ Open |
 | Operational readiness | Require named owners, measurable critical-path targets, monitoring, backup/restore, rollback, and incident escalation before launch approval. | ☐ Approved ☐ Open |
+
+**First-client CRM_BASIC scope clarification — 2026-10-25:** the project owner approved a limited CRM_BASIC first-client scope of global client/account tracking, tenant users' account overview, and a gateway into the tenant's Moodle learning platform. Broader CRM capabilities remain deferred.
 
 ## Pre-Defined Resolutions
 

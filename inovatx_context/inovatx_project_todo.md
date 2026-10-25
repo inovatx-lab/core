@@ -165,6 +165,8 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Task 1.1.2: Define enums and constraints for org types, roles, and product codes.
   - Deliverable: enum taxonomy
   - Evidence: tables and validation rules
+  - Status: Complete; project owner approved the enum taxonomy and logical validation rules on 2026-10-25.
+  - Evidence location: `inovatx_context/inovatx_core_enum_taxonomy.md` and `inovatx_context/inovatx_task_1_1_2_traceability.md`; aligned PRD, UML, domain model, scope, and decision-log references.
 - Task 1.1.3: Define the initial database migration plan.
   - Deliverable: migration plan and schema baseline
   - Evidence: migration files and schema checks
@@ -207,7 +209,7 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.1.1: Define `system_admin` vs `org_admin` permissions.
   - Deliverable: RBAC matrix
   - Evidence: role-to-permission mapping signed off
-- Task 2.1.2: Define tenant-scoped membership rules for `teacher`, `student`, `parent`, and `sme_staff`.
+- Task 2.1.2: Define tenant-scoped membership rules for `instructor`, `student`, `parent`, and `sme_staff`.
   - Deliverable: org role policy
   - Evidence: permission matrix and boundary tests
 - Task 2.1.3: Implement Django permission enforcement for the first client flow.

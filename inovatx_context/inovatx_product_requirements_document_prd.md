@@ -16,6 +16,8 @@ The platform utilizes **Django** as the central hub (CRM, billing, user identity
 - **Strict Data Isolation:** Guarantee 100% tenant data separation across multi-branch schools, SMEs, and individual clients using PostgreSQL Row-Level Security (RLS) and Django application-level defense-in-depth.
 - **Socratic AI Coaching:** Implement an interactive past-paper and quiz coaching engine that dynamically guides students step-by-step rather than providing direct answers, monetized through tiered fair-use token allowances.
 
+For the first-client MVP, `CRM_BASIC` is limited to global client/account tracking, tenant users' account overview, and a gateway into the tenant's Moodle learning platform. Broader CRM capabilities and advanced SME/NGO modules remain deferred.
+
 ---
 
 ## 2. System Architecture & Tech Stack
@@ -72,7 +74,7 @@ To accommodate Layer 07 (Clients and Users: Individuals, Schools, SMEs, NGOs) wi
 | id (UUID, PK)                                                         |
 | name (VarChar)                                                        |
 | org_type (Enum: 'individual', 'school', 'sme', 'ngo', 'enterprise')   |
-| status (Enum: 'active', 'suspended', 'pending')                       |
+| status (Enum: 'pending', 'active', 'suspended', 'expired', 'cancelled') |
 | created_at (Timestamp)                                                |
 +-----------------------------------------------------------------------+
                                    │ 1
@@ -84,7 +86,6 @@ To accommodate Layer 07 (Clients and Users: Individuals, Schools, SMEs, NGOs) wi
 | id (UUID, PK)                                                         |
 | user_id (FK -> auth_user.id)                                          |
 | organization_id (FK -> organization.id)                               |
-| role (Enum: 'org_admin', 'teacher', 'student', 'parent', 'sme_staff') |
 | phone_number (VarChar)                                                |
 | created_at (Timestamp)                                                |
 +-----------------------------------------------------------------------+
@@ -92,18 +93,30 @@ To accommodate Layer 07 (Clients and Users: Individuals, Schools, SMEs, NGOs) wi
                                    │
                                    │ N
 +-----------------------------------------------------------------------+
+|                    ORGANIZATION_MEMBERSHIP_ROLE                       |
++-----------------------------------------------------------------------+
+| user_profile_id (FK -> user_profile.id)                               |
+| role_code (Enum: 'org_admin', 'instructor', 'student', 'parent',       |
+|            'sme_staff')                                               |
++-----------------------------------------------------------------------+
++-----------------------------------------------------------------------+
 |                           SUBSCRIPTION_LICENSE                        |
 +-----------------------------------------------------------------------+
 | id (UUID, PK)                                                         |
 | organization_id (FK -> organization.id)                               |
-| product_code (Enum: 'EDTECH_LMS', 'CRM_BASIC', 'AI_PRO')             |
+| product_code (Enum: 'EDTECH_LMS', 'CRM_BASIC', 'AI_PRO')              |
 | seat_capacity (Integer)                                               |
 | moodle_cohort_id (VarChar, Nullable)                                  |
-| ai_token_monthly_allowance (BigInt)                                   |
-| ai_tokens_used_current_month (BigInt)                                 |
+| status (Enum: 'pending', 'active', 'expired', 'suspended', 'cancelled') |
+| ai_monthly_interaction_allowance_per_learner_seat (Integer, AI_PRO)   |
+| ai_daily_interaction_cap_per_learner_seat (Integer, AI_PRO)           |
 | valid_until (Timestamp)                                               |
 +-----------------------------------------------------------------------+
 ```
+
+Task 1.1.2 defines the canonical enum values and logical validation rules. AI interaction entitlement fields apply only to `AI_PRO`; the approved learner-seat baseline is 1,000 interactions per month and 50 per day. Product-specific seat units and physical enforcement are documented separately from this conceptual ERD.
+`OrganizationMembershipRole` is unique per `(user_profile_id, role_code)`; global `system_admin` is not an organization membership role.
+The logical relationships are one `Organization` to many `UserProfile` memberships, one `UserProfile` to zero or many `OrganizationMembershipRole` assignments, and one `Organization` to zero or many `SubscriptionLicense` records.
 
 ### 3.2 Row-Level Security (RLS) Implementation
 1. **Tenant Identification:** Each request passing through Django context attaches `request.user.userprofile.organization_id`.
@@ -210,8 +223,8 @@ The AI Engine operates as an asynchronous FastAPI sub-application optimized for 
 
 The following decisions resolve the main ambiguities in the PRD and should be treated as implementation guidance for the build phase.
 
-1. **Role and Authorization Model:** Define `system_admin` as a global role and `org_admin` as a tenant-scoped role. Normalize `teacher` to `instructor` in product language where needed, and ensure `student`, `parent`, and `sme_staff` are evaluated as membership-based permissions rather than global roles.
-2. **Organization Lifecycle:** Define `pending`, `active`, `suspended`, `expired`, and `cancelled` as the recommended end-state lifecycle for organizations and subscriptions. Keep `Organization.status` separate from `SubscriptionLicense.status` and `Payment.status`.
+1. **Role and Authorization Model:** `system_admin` is global and is not a membership role. Use `org_admin`, `instructor`, `student`, `parent`, and `sme_staff` as organization-scoped membership role codes. `instructor` is the canonical code for teachers, lecturers, mentors, and similar teaching roles. Permission grants remain resource/action based and are not defined by the role code alone.
+2. **Organization and License Status Values:** Use `pending`, `active`, `suspended`, `expired`, and `cancelled` as the allowed values for both `Organization.status` and `SubscriptionLicense.status`, with the two lifecycles kept separate from each other and from `Payment.status`. For a license, `pending` means the entitlement exists but is not usable. Lifecycle transitions remain with the assigned lifecycle task.
 3. **Subscription & Payment Lifecycle:** Use separate state machines for subscriptions and payments. A license is not equivalent to a payment outcome; payment state should be tracked independently from license validity.
 4. **AI Allowance Semantics:** Define customer-facing `interactions` distinct from internal provider `tokens`. Maintain a usage ledger to reserve and reconcile allowance atomically, with institutional pool calculations based on active seat capacity and a fixed billing reset window.
 5. **AI Network Path:** Keep FastAPI on a private internal network behind the public edge. Moodle and Django should access it through authenticated internal service channels; public exposure must be explicitly approved and rate-limited if absolutely required.

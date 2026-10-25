@@ -25,7 +25,7 @@ flowchart LR
     subgraph Humans[Human Actors]
         Individual[Individual client]
         OrgManager[Organization manager or admin]
-        Teacher[Teacher or instructor]
+        Instructor[Instructor: teachers, lecturers, mentors, and similar roles]
         Student[Student]
         Parent[Parent]
         SMEStaff[SME staff]
@@ -68,7 +68,7 @@ flowchart LR
     OrgManager -. candidate goal association .-> UCLicense
     SysAdmin -. candidate goal association .-> UCOrg
     SysAdmin -. candidate goal association .-> UCRoles
-    Teacher -. role permissions not specified .-> UCCourse
+    Instructor -. role permissions not specified .-> UCCourse
     Student -. candidate goal association .-> UCLearn
     Student -. candidate goal association .-> UCQuiz
     Student -. candidate goal association .-> UCCoach
@@ -87,9 +87,9 @@ flowchart LR
     UCQuiz --> UCGrade
 ```
 
-**Included scope:** registration, organization and user administration, role boundaries, parent-child mapping, institutional CSV enrollment, payment, licenses, Moodle account/cohort provisioning, SSO launch, course/quiz use, Socratic feedback, and grade/completion synchronization.
+**Included scope:** registration, organization and user administration, role boundaries, parent-child mapping, institutional CSV enrollment, payment, licenses, Moodle account/cohort provisioning, SSO launch, course/quiz use, Socratic feedback, grade/completion synchronization, and the limited CRM_BASIC first-client slice.
 
-**Open scope boundary:** the PRD does not specify detailed CRM or project-management use cases for the future SME/NGO expansion, or permissions for each named actor.
+**CRM_BASIC first-client boundary:** global client/account tracking, tenant users' account overview, and a gateway into each tenant's Moodle learning platform are included. Broader CRM/project-management use cases and advanced SME/NGO modules remain deferred; permissions for each named actor are not specified here.
 
 ## 2. BPMN: Business Process
 
@@ -188,7 +188,7 @@ flowchart TD
 
 ## 4. State Machine: Statuses
 
-The PRD explicitly defines the organization status enum, but the implementation needs a fuller lifecycle model. The state diagram below is the recommended target state model after resolving the open decisions: it distinguishes organization status from subscription and payment state, and it defines a suspension and reinstatement path including renewal and expiry behavior.
+The state diagram below is a conceptual lifecycle proposal, not an approved transition contract. Task 1.1.2 approves the status values, but not the transition triggers or paths shown here; those remain for their assigned lifecycle tasks.
 
 ```mermaid
 stateDiagram-v2
@@ -211,7 +211,7 @@ stateDiagram-v2
     state "cancelled" as Cancelled
 ```
 
-**Status coverage:** The PRD explicitly supports `pending`, `active`, and `suspended` for `Organization`. The recommended target-state model adds `expired` and `cancelled` because a subscription and organization lifecycle cannot be treated as complete if it lacks renewal, cancellation, and reinstatement semantics. These are not source PRD states; they are design decisions made to resolve the missing lifecycle questions.
+**Approved status values:** Task 1.1.2 approves `pending`, `active`, `suspended`, `expired`, and `cancelled` for both `Organization.status` and `SubscriptionLicense.status`, with independent lifecycles and payment status. A pending license exists but is not usable. The diagram's transition behavior remains a proposal.
 
 **Recommended design decisions:**
 - `Organization.status` and `SubscriptionLicense.status` should remain separate. `valid_until` alone is not a complete lifecycle.
@@ -238,7 +238,7 @@ The ERD contains the entities and relationships explicitly described in the PRD.
         uuid id PK
         varchar name
         enum org_type "individual | school | sme | ngo | enterprise"
-        enum status "active | suspended | pending"
+        enum status "pending | active | suspended | expired | cancelled"
         timestamp created_at
     }
 
@@ -252,7 +252,7 @@ The ERD contains the entities and relationships explicitly described in the PRD.
 
     ORGANIZATION_MEMBERSHIP_ROLE {
         uuid user_profile_id FK
-        enum role_code
+        enum role_code "org_admin | instructor | student | parent | sme_staff"
     }
 
     SUBSCRIPTION_LICENSE {
@@ -261,7 +261,7 @@ The ERD contains the entities and relationships explicitly described in the PRD.
         enum product_code "EDTECH_LMS | CRM_BASIC | AI_PRO"
         integer seat_capacity
         varchar moodle_cohort_id "nullable"
-        enum status
+        enum status "pending | active | expired | suspended | cancelled"
         integer ai_monthly_interaction_allowance_per_learner_seat
         integer ai_daily_interaction_cap_per_learner_seat
         timestamp valid_until
@@ -270,7 +270,7 @@ The ERD contains the entities and relationships explicitly described in the PRD.
 
 **Database and isolation constraints:** the PRD places Django application data in PostgreSQL database `inovatx_db` with RLS and Moodle data in `moodle_db`. Because a user may have memberships in multiple organizations, tenant context must be selected from an explicitly identified and validated `UserProfile` membership; the PRD's singular `request.user.userprofile.organization_id` example must not be implemented literally. Middleware injects the validated organization using `SET LOCAL`; tenant tables enable and force RLS; policies compare `organization_id` with the session setting; request teardown resets borrowed connections. Missing, invalid, or unauthorized membership context must fail closed. `student_data` is used as an RLS example, but its schema and relationship are not defined.
 
-**Resolved cardinality for Task 1.1.1:** one auth user may have memberships in multiple organizations, with at most one `UserProfile` per `(user_id, organization_id)`. One membership may have multiple organization-scoped role assignments. An organization may have multiple product licenses, with at most one current license per `(organization_id, product_code)`. These are recorded as project-owner decisions P1.1.1-D1 and P1.1.1-D2 in the Phase 0 decision log. Physical constraints, role enums, and lifecycle behavior remain assigned to their roadmap tasks.
+**Resolved cardinality for Task 1.1.1:** one auth user may have memberships in multiple organizations, with at most one `UserProfile` per `(user_id, organization_id)`. One membership may have multiple organization-scoped role assignments. An organization may have multiple product licenses, with at most one current license per `(organization_id, product_code)`. These are recorded as project-owner decisions P1.1.1-D1 and P1.1.1-D2 in the Phase 0 decision log. Task 1.1.2 defines canonical values and logical validation; physical constraints and lifecycle transitions remain assigned to their roadmap tasks.
 
 **Schema omissions, not added as requirements:** payments, invoices, renewals, refunds, parent-child links, branches, enrollment records, courses, quizzes, assessments, grades, AI interactions, token-usage ledger entries, audit events, and webhook deliveries. These may be necessary implementation entities, but the PRD does not specify them.
 
@@ -492,9 +492,9 @@ flowchart TB
 
 These actions resolve the major design ambiguities while staying aligned with the PRD. They are the recommended target-state decisions to carry into implementation planning.
 
-1. **Role and authorization mapping:** define a global `system_admin` role and a tenant-scoped `org_admin` role. Normalize `teacher` to `instructor` where product language differs, and treat `student`, `parent`, and `sme_staff` as tenant-scoped membership roles. Enforce permissions by action and resource in Django and Moodle rather than allowing every role to inherit every admin capability.
-2. **Organization lifecycle:** keep the PRD states `pending`, `active`, and `suspended` as the minimum lifecycle, and add explicit `expired` and `cancelled` states for product flow completeness. Define `pending → active` as onboarding approval, `active → suspended` as policy or compliance action, `suspended → active` as reinstatement, and `active → cancelled` / `expired` as closure or renewal failure.
-3. **Subscription and payment lifecycle:** create separate state machines for `SubscriptionLicense` and `Payment`. Model payment as `pending`, `succeeded`, `failed`, and `cancelled`; model license as `active`, `expired`, `suspended`, or `cancelled`. Keep `valid_until` as a data field, not as the whole lifecycle model.
+1. **Role and authorization mapping:** `system_admin` is global and not a membership role. Use `org_admin`, `instructor`, `student`, `parent`, and `sme_staff` as tenant-scoped membership roles. `instructor` is the canonical role name for teachers, lecturers, mentors, and similar teaching roles. Enforce permissions by action and resource in Django and Moodle; role codes alone do not define permissions.
+2. **Organization and license status values:** Task 1.1.2 approves `pending`, `active`, `suspended`, `expired`, and `cancelled` for both `Organization.status` and `SubscriptionLicense.status`. Keep their lifecycles separate; a pending license exists but is not usable. State transitions remain to be defined by the assigned lifecycle task.
+3. **Subscription and payment lifecycle:** keep license and payment state separate; `valid_until` is not the whole lifecycle model. Payment status values and license transition behavior remain with their assigned lifecycle tasks.
 4. **AI allowance semantics:** map customer-facing `interactions` to internal token accounting. Use a usage ledger to reserve, consume, and reconcile allowance atomically, with monthly reset rules based on billing period. Define the institutional pool as an organization-license calculation derived from active seat capacity rather than ad hoc counts. Downgrade only non-critical interactions when quotas are exhausted.
 5. **AI network path:** keep FastAPI on a private network inside the VPS deployment; do not route the AI service publicly unless there is a separate security review. Prefer authenticated server-to-server traffic from Moodle or Django, and use Nginx only as the public edge gateway. If the browser must reach FastAPI, enforce a signed, short-lived user-scoped token and rate limiting.
 6. **Integration contracts:** define versioned payload schemas and signed webhook contracts for payment, Moodle, AI, and grade events. Require event IDs, timestamp validation, retry-backoff policies, idempotency, and a dead-letter queue for irreversible failures.

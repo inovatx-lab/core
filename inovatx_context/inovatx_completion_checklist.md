@@ -16,13 +16,13 @@ This checklist is a phased approval gate. Each item must be explicitly approved 
 ## 1. MVP SCOPE LOCK
 
 - [ ] We are building only the first-client MVP for 2026-12-01.
-- [ ] No phase II features, CRM expansion, SME/NGO product expansion, or broader platform work are included.
-- [ ] The following are in scope: tenant-aware Django Core, Moodle SSO/provisioning, AI Socratic coaching, fair-use enforcement, and payment-to-license activation.
-- [ ] The following are out of scope until after first-client launch: broader CRM, project management, multi-branch analytics expansion, advanced SME/NGO modules, and non-essential AI features.
+- [ ] No phase II features, broader CRM expansion, SME/NGO product expansion, or broader platform work are included.
+- [ ] The following are in scope: tenant-aware Django Core, the limited CRM_BASIC account-tracking/account-overview/Moodle-gateway slice, Moodle SSO/provisioning, AI Socratic coaching, fair-use enforcement, and payment-to-license activation.
+- [ ] The following are out of scope until after first-client launch: CRM capabilities beyond the limited CRM_BASIC slice, project management, multi-branch analytics expansion, advanced SME/NGO modules, and non-essential AI features.
 
 ## 2. DECISION LOCK
 
-- [ ] Role model is finalized: `system_admin` is global; `org_admin` is tenant-scoped; `teacher`, `student`, `parent`, and `sme_staff` are tenant membership roles.
+- [ ] Role model is finalized: `system_admin` is global; `org_admin`, `instructor`, `student`, `parent`, and `sme_staff` are tenant membership roles. `instructor` is the canonical code for teachers, lecturers, mentors, and similar teaching roles.
 - [ ] RBAC is defined by resource + action, not broad inheritance.
 - [ ] Organization lifecycle is finalized: `pending`, `active`, `suspended`, `expired`, `cancelled`.
 - [ ] Subscription lifecycle is finalized separately from organization lifecycle.
@@ -33,6 +33,8 @@ This checklist is a phased approval gate. Each item must be explicitly approved 
 - [ ] **Interaction-to-token mapping: 1 interaction = 5,000 tokens pre-reserved; post-call reconciliation.**
 - [ ] **Critical vs. non-critical AI classification: `/socratic-eval` errors on exhaustion; `/hint` and ancillary endpoints downgrade to lightweight models.**
 - [ ] **Mastery score sourcing: Moodle gradebook API at request time per topic.**
+
+Task 1.1.2 records the allowed organization and license status values; lifecycle transitions remain for their assigned lifecycle tasks.
 - [ ] FastAPI is defined as private/internal by default; any public exposure requires explicit approval and security review.
 - [ ] Nginx is the standard public ingress; Traefik is not active unless a formal deployment decision says otherwise.
 

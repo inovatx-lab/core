@@ -334,7 +334,7 @@ The approved answers below record the adopted decisions. This register reflects 
 
 **Decision:** Keep one global login identity and allow it to have memberships in multiple organizations. Represent each membership once per `(auth_user, organization)` pair. Allow multiple organization-scoped role assignments per membership; do not impose a student-only single-organization rule. The global `system_admin` role is not an organization membership role.
 
-**Rationale:** A person may be affiliated with multiple institutions, including as a parent or teacher, without needing duplicate login credentials. Organization-scoped membership provides the tenant context boundary while role assignments express that person's roles within each organization.
+**Rationale:** A person may be affiliated with multiple institutions, including as a parent or instructor, without needing duplicate login credentials. Organization-scoped membership provides the tenant context boundary while role assignments express that person's roles within each organization.
 
 **Impact:** `UserProfile` is modeled as an organization membership, unique by user and organization. A role-assignment association is required. The PRD's singular `request.user.userprofile.organization_id` example must be refined by Task 1.2.1 to explicitly select and validate a membership for each request; implementation must fail closed when context is missing or invalid.
 
@@ -345,3 +345,43 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** This distinguishes product entitlement from payment state and usage accounting, preserves multiple product entitlements, and follows approved D3/D17 interaction/token semantics.
 
 **Impact:** The license model does not include `ai_tokens_used_current_month`. Renewal/payment history and the physical enforcement of current-license uniqueness must be finalized with the subscription lifecycle and schema tasks before implementation.
+
+---
+
+## Phase 1 Task 1.1.2 Decisions — Enum Taxonomy and Validation Rules
+
+**Decision date:** 2026-10-25
+**Status:** Project-owner decisions for Task 1.1.2; taxonomy approved 2026-10-25
+**Approver:** Project owner, confirmed in the 2026-10-25 Task 1.1.2 planning interaction
+
+### P1.1.2-D1: Canonical organization and membership-role codes
+
+**Decision:** Use `individual`, `school`, `sme`, `ngo`, and `enterprise` as organization type codes. Use `org_admin`, `instructor`, `student`, `parent`, and `sme_staff` as organization membership-role codes. `system_admin` remains global and is not a membership role. `instructor` is the canonical code for teachers, lecturers, mentors, and similar teaching roles; do not create separate role codes for those titles.
+
+**Rationale:** This preserves the PRD's organization classifications and membership roles while using one stable role code for equivalent teaching responsibilities.
+
+**Impact:** Type and role codes identify classifications only. They do not enable deferred product modules or define authorization. Role permissions remain resource/action based and belong to the assigned RBAC task.
+
+### P1.1.2-D2: First-client CRM_BASIC boundary
+
+**Decision:** Include `EDTECH_LMS`, `CRM_BASIC`, and `AI_PRO` as product codes. Include `CRM_BASIC` in the first-client baseline only for global client/account tracking, tenant users' account overview, and a gateway into the tenant's Moodle learning platform. Broader CRM capabilities and advanced SME/NGO modules remain deferred.
+
+**Rationale:** The minimal account and learning-platform gateway functions support centralized client operations without authorizing the broader CRM and SME/NGO expansion.
+
+**Impact:** `CRM_BASIC` is an accepted product code for this bounded scope. The code alone does not grant features, permissions, cross-tenant access, activation, or payment behavior. Scope references in the PRD and completion checklist distinguish this slice from deferred expansion.
+
+### P1.1.2-D3: Organization and license status code sets
+
+**Decision:** Use `pending`, `active`, `suspended`, `expired`, and `cancelled` as the allowed status values for both `Organization.status` and `SubscriptionLicense.status`. Keep these statuses separate from payment status. A `pending` license exists but is not usable.
+
+**Rationale:** The PRD and UML require distinct organization, license, and payment states; the owner approved a complete shared set of allowed values while preserving separate lifecycle meaning.
+
+**Impact:** This approves enum values and the meaning of a pending license only. It does not approve state transitions, payment coupling, renewal/history behavior, or activation rules, which remain with their assigned lifecycle tasks.
+
+### P1.1.2-D4: Product-specific seats and AI interaction entitlements
+
+**Decision:** `seat_capacity` must be an integer greater than or equal to 1 and counts licensed units specific to the selected product. AI interaction entitlement fields apply only to `AI_PRO`; the D17 learner-seat baseline is 1,000 monthly interactions and 50 daily interactions.
+
+**Rationale:** Product-specific seat units avoid assuming one capacity formula across LMS, CRM, and AI entitlements. Restricting the interaction allowance to AI_PRO identifies the AI product boundary while preserving D17's approved per-learner values.
+
+**Impact:** These are logical validation and entitlement rules. Product-specific seat calculations, AI usage/pooling/reset behavior, and physical enforcement remain outside Task 1.1.2.
