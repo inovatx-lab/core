@@ -13,6 +13,7 @@ INOVEXA/
 ├── .gitignore
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
+    ├── inovatx_phase0_exit_review.md
     ├── inovatx_architecture_baseline.md
     ├── inovatx_ai_coding_guardrails.md
     ├── inovatx_cost_capacity_failure_analysis.md
@@ -35,11 +36,11 @@ The Markdown files in `inovatx_context/` are the working project context. The Wo
 
 ## Git and branches
 
-This workspace is initialized as a local Git repository. Its `origin` is `https://github.com/inovatx-lab/core.git`, and the local `main` and `develop` branches are established. The remote currently advertises no branches; local work has not been pushed.
+This workspace is initialized as a Git repository. Its `origin` is `https://github.com/inovatx-lab/core.git`; local `main` and `develop` branches are established. On 2026-10-25, all local branches were published to that remote and verified by matching their remote refs to the local branch tips.
 
 See [BRANCH_POLICY.md](BRANCH_POLICY.md) for the intended branch names, protections, commit convention, and CI gates. That document describes policy; it is not evidence that branches or host-side protections have been configured.
 
-GitHub branch-protection settings and publication of the local branches remain external follow-ups. They must be verified on GitHub and are not claimed as configured here.
+GitHub branch-protection settings remain an external follow-up. They must be verified on GitHub and are not claimed as configured here.
 
 ## Future implementation layout
 

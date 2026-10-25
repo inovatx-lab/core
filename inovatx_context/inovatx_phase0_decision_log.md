@@ -302,3 +302,22 @@ The approved answers below record the adopted decisions. This register reflects 
 | | Technical/security owner | [x] Approved ☐ No-go ☐ Conditional go | |
 
 **Gate Rule:** All 19 decision areas must be marked Approved before implementation begins.
+
+---
+
+## Governance Clarification: Completion Checklist Gate Applicability
+
+**Decision date:** 2026-10-19
+**Status:** Approved interpretation; formal exit approval remains separate
+**Approver:** IBRAHIM SSEMAKULA, project owner / executive sponsor, as confirmed in the 2026-10-19 review interaction. No external approval-record reference is available in this workspace.
+
+**Decision:** Apply the completion checklist by phase and readiness gate:
+
+- Phase 0–6 completion items are evaluated at the exit of their respective phase. Completion of a later phase is not a prerequisite to entering an earlier phase.
+- Scope, decision, and architecture/security items in Sections 1–3 retain their independent approval requirements. This clarification neither checks nor waives any of them.
+- Operational readiness and launch items apply at their relevant readiness and launch gates, not as evidence of Phase 0 completion.
+- Phase 0 exit approval and explicit authorization for Phase 1 are separate decisions. This clarification does not authorize Phase 1.
+
+**Rationale:** The checklist includes completion criteria for later phases and launch, while the executive gate requires a separate exit review and approval for each phase. Applying those criteria at their respective gates avoids requiring future work to be complete before an earlier phase can begin, without waiving any independent pre-build approvals.
+
+**Impact:** Reviewers should assess only the checklist items applicable to the gate under review, keep all other items open, and record the applicable evidence and approvals. The Phase 0 exit review is recorded as approved; this does not grant Phase 1 authorization or claim that host-side branch protections are configured.

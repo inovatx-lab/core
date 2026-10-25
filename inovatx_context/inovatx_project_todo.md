@@ -109,8 +109,8 @@ Milestone 0.1: Project is formally scoped and protected from drift.
 - Task 0.2.1: Set up repository structure and branch strategy.
   - Deliverable: repo structure with branches
   - Evidence: branch policy and folder layout
-  - Status: Complete locally; GitHub branch publication and host-side protection are pending.
-  - Completion evidence: `BRANCH_POLICY.md` documents the branch strategy; `REPOSITORY_STRUCTURE.md` describes the actual workspace; local `main` and `develop` branches are established in the initialized Git repository.
+  - Status: Local and remote branches established; host-side branch protections remain unverified.
+  - Completion evidence: `BRANCH_POLICY.md` documents the branch strategy; `REPOSITORY_STRUCTURE.md` describes the actual workspace; local `main` and `develop` branches are established, and all local branches were published to `https://github.com/inovatx-lab/core.git` on 2026-10-25.
 - Task 0.2.2: Establish environment baseline for Django, PostgreSQL, Redis, Moodle, and FastAPI.
   - Deliverable: environment inventory and container plan
   - Evidence: Docker Compose skeleton and service definitions
@@ -145,6 +145,8 @@ Milestone 0.1: Project is formally scoped and protected from drift.
 - AI guardrails are documented and used.
 - Phase 0 decision log exists.
 - No feature work outside the first client path begins.
+
+**Exit review:** [Phase 0 exit review record](inovatx_phase0_exit_review.md) — approved review; Phase 0 closure and Phase 1 authorization remain separate.
 
 Milestone 0.2: The team is ready to build the first working slice.
 

@@ -3,7 +3,15 @@
 Date: 2026-10-14
 Target launch: 2026-12-01
 
-This checklist is the mandatory pre-build sign-off. Nothing moves forward until every item below is explicitly approved.
+This checklist is a phased approval gate. Each item must be explicitly approved before the work or transition it governs; an unchecked item blocks that applicable gate unless an accountable approver records a bounded exception.
+
+### Gate applicability clarification — 2026-10-19
+
+- The Phase 0–6 completion items in Section 4 are evaluated at the exit of their respective phases. A later-phase completion item is not a prerequisite for entering an earlier phase.
+- Sections 1–3 contain scope, decision, and architecture/security approvals. This clarification does not mark those items approved or waive any approval required before work depends on them.
+- Operational readiness and launch items are evaluated at their applicable readiness and launch gates. They are not evidence of Phase 0 completion.
+- Phase 0 exit approval and authorization to begin Phase 1 remain separate decisions. This clarification does not authorize Phase 1.
+- Approval basis: IBRAHIM SSEMAKULA, project owner / executive sponsor, selected the phased-gate interpretation in the 2026-10-19 project review interaction. No external approval-record reference is available in this workspace.
 
 ## 1. MVP SCOPE LOCK
 
@@ -44,6 +52,7 @@ This checklist is the mandatory pre-build sign-off. Nothing moves forward until 
 
 ## 4. PHASE GATE LOCK
 
+- Evaluate each phase completion item at that phase's exit. Do not mark a phase complete before its evidence and approval exist.
 - [ ] Phase 0 is complete: repo baseline, source-of-truth docs, project guardrails, AI-grounding rules, and exit criteria are signed off.
 - [ ] Phase 1 is complete: model layer, migration baseline, tenant isolation baseline, and Django foundation are validated.
 - [ ] Phase 2 is complete: RBAC, onboarding, and subscription activation paths are validated.
