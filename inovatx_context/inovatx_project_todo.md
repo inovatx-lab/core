@@ -176,7 +176,9 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 ### Activity 1.2: Define tenant isolation and security contract
 - Task 1.2.1: Define tenant context strategy for requests and workers.
   - Deliverable: tenant context specification
-  - Evidence: middleware contract and security design note
+  - Evidence: request and worker context contract, middleware/security design note, decision record, and focused documentation validation.
+  - Status: Complete; project owner approved the documentation-only tenant-context specification on 2026-10-25.
+  - Evidence location: `inovatx_context/inovatx_tenant_context_specification.md` and `inovatx_context/inovatx_task_1_2_1_traceability.md`; aligned PRD, UML, and decision log.
 - Task 1.2.2: Implement RLS baseline and DB tests for tenant isolation.
   - Deliverable: RLS policy baseline
   - Evidence: passing tenant isolation test suite

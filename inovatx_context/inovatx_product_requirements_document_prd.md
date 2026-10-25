@@ -121,8 +121,8 @@ The logical relationships are one `Organization` to many `UserProfile` membershi
 The initial physical schema baseline uses a UUID primary key for `OrganizationMembershipRole` and enforces uniqueness of `(user_profile_id, role_code)`. The initial license baseline has a unique `(organization_id, product_code)` pair and no renewal-history rows.
 
 ### 3.2 Row-Level Security (RLS) Implementation
-1. **Tenant Identification:** Each request passing through Django context attaches `request.user.userprofile.organization_id`.
-2. **Session Variable Injection:** Custom Django middleware executes `SET LOCAL app.current_organization_id = '<UUID>'` on every borrowed DB connection.
+1. **Tenant Identification:** Each tenant-scoped request must explicitly select an organization. Django resolves and validates the `UserProfile` membership matching both the authenticated user and selected organization; the singular `request.user.userprofile.organization_id` example must not be used for a user with multiple memberships. The request transport is defined with the Core API contract.
+2. **Transaction-Local Context:** The application establishes `SET LOCAL app.current_organization_id = '<UUID>'` inside the transaction performing tenant-owned database work, before the first tenant query. Do not retain tenant identity in connection- or session-scoped state.
 3. **Postgres RLS Rule:**
    ```sql
    ALTER TABLE student_data ENABLE ROW LEVEL SECURITY;
@@ -133,11 +133,11 @@ The initial physical schema baseline uses a UUID primary key for `OrganizationMe
    TO inovatx_app_role
    USING (organization_id = current_setting('app.current_organization_id')::uuid);
    ```
-4. **Connection Pool Protection:** Django middleware guarantees connection resetting upon request teardown to eliminate cross-tenant connection leakages.
-5. **Background Worker Context:** Celery tasks must resolve tenant context explicitly before executing database operations. A background worker must not inherit an implicit tenant from a shared thread or global connection state.
-6. **Tenant Coverage:** Every tenant-owned table in the Django database must carry an `organization_id` or an equivalent tenant key and be protected by PostgreSQL RLS plus Django application-level validation. Support access to tenant data must be auditable and explicitly authorized.
+4. **Connection Pool Protection:** Transaction completion clears the `SET LOCAL` value. Request and task teardown must leave borrowed connections clean and must not rely on a connection-scoped tenant setting.
+5. **Background Worker Context:** Each tenant-scoped Celery task must carry an explicit organization identifier and resolve its context before database operations. User-originated tasks preserve actor/membership identity when applicable and revalidate membership and applicable authorization at execution; system/event-originated tasks preserve explicit provenance. Every execution attempt establishes its own transaction-local context. A worker must not inherit a tenant from a request, shared thread, global state, or prior connection use.
+6. **Tenant Coverage:** Every tenant-owned table in the Django database must carry an `organization_id` or an equivalent tenant key and be protected by PostgreSQL RLS plus Django application-level validation. The global `system_admin` role does not itself grant access to tenant-owned data or an implicit all-tenant context. Any assistance requiring access beyond an organization's normal roles and permissions must be requested from that organization; the request and approval workflow is not defined here.
 
-> Implementation note: The model will treat a missing or invalid tenant context as a fail-closed state. Cross-tenant reads or writes are blocked by policy enforcement and application-layer validation.
+> Implementation note: Missing, invalid, or unauthorized tenant context must fail closed. Cross-tenant reads or writes are blocked by policy enforcement and application-layer validation. `student_data` and `inovatx_app_role` in the sample policy below are illustrative only; the table and database role are not approved design choices. Database bootstrap, application roles, grants, and RLS policies remain unresolved and require approval before Task 1.2.2 implementation.
 ---
 
 ## 4. Decoupled Moodle LMS Integration

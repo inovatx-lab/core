@@ -1,0 +1,84 @@
+# Tenant Context Specification — Task 1.2.1
+
+**Roadmap task:** 1.2.1 — Define tenant context strategy for requests and workers
+**Phase / activity:** Phase 1 / Activity 1.2
+**Status:** Approved by project owner on 2026-10-25
+**Traceability:** [Task 1.2.1 traceability record](inovatx_task_1_2_1_traceability.md)
+**Sources:** PRD §3.2, FR-05, NFR-01, NFR-03; UML §§5–6, 8; Task 1.1.1 domain model and decision P1.1.1-D1; Phase 0 exit review.
+
+## 1. Purpose and boundary
+
+This specification defines how tenant context is selected, validated, propagated, and bounded for Django requests and Celery work. It is a design contract, not existing application behavior. The repository currently has no Django middleware, worker implementation, database connection setup, or RLS policy implementation.
+
+The context identifies one organization for a tenant-scoped operation. It is not a substitute for authentication, membership validation, or resource/action authorization. It does not grant a user, worker, or global administrator permission to access data merely because an organization identifier is present.
+
+## 2. Context invariants
+
+1. Tenant context is explicit for every operation on tenant-owned data.
+2. A tenant identifier is a selector, not proof of authorization.
+3. A user's context is resolved through that authenticated user's `UserProfile` membership for the selected organization. Do not assume the global login has one implicit profile or default organization.
+4. Missing, malformed, or unauthorized context must fail closed; never fall back to an unscoped query or another/default tenant.
+5. Tenant context is transaction-local. Do not retain it in connection- or session-scoped database state.
+6. Context is re-established independently for each request transaction and each worker execution attempt; no ambient request, thread-local, process-global, or previously borrowed connection state is a source of tenant identity.
+
+## 3. Authenticated request contract
+
+For a tenant-scoped request, the application must:
+
+1. Authenticate the caller before resolving tenant context.
+2. Require an explicit organization UUID selector. Treat it as untrusted input.
+3. Resolve the `UserProfile` membership matching both the authenticated user and the selected organization. Reject the operation if that membership does not exist or cannot be validated.
+4. Apply the authorization rule for the requested resource and action. Membership selection alone is not permission.
+5. Before any tenant-owned database query or mutation, establish the validated organization identifier as transaction-local database context.
+6. Keep all tenant-owned database work within the transaction where that context was established. Transaction completion clears the `SET LOCAL` value; request teardown must also leave the borrowed connection in a clean state.
+
+The request selector's transport (for example, route, header, or session selection) is intentionally deferred until the Core API contract is defined in Task 1.3.3. Whichever transport is selected, it must identify one organization and pass through the same authenticated membership validation; no transport value is trusted as authorization.
+
+The PRD does not define a membership status field. This task therefore requires a matching membership record and applicable approved authorization checks, but does not invent additional membership lifecycle rules.
+
+## 4. Background worker contract
+
+Every tenant-scoped task must carry an explicit `organization_id`. A worker must establish its context from that task's own validated inputs, not from the request that enqueued it, a shared thread, a process-global variable, or a connection's prior state.
+
+For user-originated work, the task context must preserve the initiating user and membership identifiers when applicable. The worker must validate that the supplied membership belongs to the supplied organization and user, then revalidate the applicable authorization when the task executes. Payload identity is not authorization. If the membership or applicable authorization cannot be validated, the task must not perform tenant-owned operations.
+
+For system- or event-originated work, the task must preserve explicit event/task provenance and its target organization. This task does not define a service-principal model, broker authentication mechanism, or database role. Those mechanisms must not be inferred from the presence of an event identifier or organization UUID.
+
+Each worker execution attempt must establish transaction-local tenant context before tenant-owned database access. Retries start with fresh context resolution and transaction state; they must not reuse a tenant setting from a previous attempt.
+
+## 5. Global administrator and organization assistance boundary
+
+The global `system_admin` role does not by itself grant access to tenant-owned data and does not create an implicit all-tenant context. A `system_admin` operation on tenant-owned data still requires an explicit target organization and the applicable authorization.
+
+If assistance requires access beyond the organization's normal roles and permissions, the system administrator must request access from that organization. This task does not define the request, approval, grant, scope, duration, revocation, or audit workflow. No support or impersonation access may be inferred or implemented from this specification alone.
+
+## 6. Database context and RLS boundary
+
+The PRD specifies `SET LOCAL app.current_organization_id` for tenant context. The setting must be made within the transaction that performs tenant-owned database work and before the first such query. A connection-scoped or session-scoped tenant setting is not an acceptable substitute.
+
+RLS remains defense in depth alongside application authorization. The example `student_data` table and `inovatx_app_role` identifier in the PRD are illustrative, not approved schema or role decisions. Database bootstrap behavior, application roles, privileges, grants, policy targets, policy expressions, and RLS implementation remain unresolved. They must be approved before Task 1.2.2 implements the RLS baseline.
+
+This document specifies the tenant-context contract at the application/database boundary only; it neither creates nor applies an RLS policy.
+
+## 7. Failure and authorization dependencies
+
+- Missing, invalid, or unauthorized tenant context blocks tenant-owned reads and writes. No default organization, global-admin bypass, or unscoped fallback is permitted.
+- Task 1.2.3 defines the detailed fail-closed policy, including failure handling and observable behavior.
+- The route/header/session carrier is deferred to Task 1.3.3.
+- The detailed resource/action permission matrix and role policy are outside Task 1.2.1. A worker must not execute a user-originated operation if the applicable approved authorization decision cannot be made at execution time.
+- Database bootstrap, application database roles and grants, and RLS policy design remain unresolved dependencies for Task 1.2.2.
+- The organization assistance workflow for any access beyond normal roles remains undefined and requires separate approval before implementation.
+
+## 8. Implementation acceptance checks
+
+When the middleware and worker contracts are implemented by their authorized tasks, verification must demonstrate:
+
+- a user with multiple memberships can select only an organization for which that authenticated user has a matching membership;
+- a missing or invalid organization selector cannot reach tenant-owned data;
+- a worker task cannot obtain tenant context from another request, task, thread, or prior connection use;
+- a user-originated queued task is denied if its membership or applicable authorization is no longer valid at execution;
+- every tenant-scoped worker attempt explicitly establishes its organization context;
+- `system_admin` role alone does not permit tenant-owned access or bypass the explicit target-organization requirement; and
+- transaction completion prevents tenant context from leaking into later work on a reused connection.
+
+These are required future implementation checks, not tests run or evidence claimed by this documentation task.

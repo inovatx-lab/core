@@ -441,3 +441,41 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** This provides application-level validation and database-level integrity while keeping approved value changes manageable through migrations.
 
 **Impact:** Document the intended choices and checks; do not claim they are enforced until executable models/migrations are applied and schema checks pass.
+
+## Phase 1 Task 1.2.1 Decisions — Tenant Context for Requests and Workers
+
+**Decision date:** 2026-10-25
+**Status:** Project-owner decisions for Task 1.2.1; tenant-context specification approved 2026-10-25
+**Approver:** Project owner, confirmed in the 2026-10-25 Task 1.2.1 planning interaction
+
+### P1.2.1-D1: Explicit request organization selection
+
+**Decision:** A tenant-scoped request must explicitly select an organization UUID. Resolve the authenticated user's matching `UserProfile` membership before accessing tenant-owned data. Defer the selector's route/header/session transport to Task 1.3.3.
+
+**Rationale:** One global user may have memberships in multiple organizations; neither a singular profile nor an implicit default can safely select the tenant.
+
+**Impact:** Request identifiers are selectors, not authorization. The eventual API contract must preserve explicit selection and membership validation.
+
+### P1.2.1-D2: Explicit worker context and execution-time authorization
+
+**Decision:** Every tenant-scoped worker task carries an explicit organization identifier. User-originated tasks preserve actor/membership identifiers when applicable and revalidate membership and applicable authorization when executed. System/event-originated tasks preserve explicit provenance. Tasks must not inherit ambient request, thread, process, or connection tenant state.
+
+**Rationale:** Queued work can execute after the initiating membership or authorization changes; payload identity alone is not permission, and tenant state must not leak across asynchronous work.
+
+**Impact:** Each execution attempt resolves its own context. The detailed role/permission matrix and task-specific service identity are not defined here.
+
+### P1.2.1-D3: Transaction-local tenant database context
+
+**Decision:** Establish tenant database context using the PRD's `SET LOCAL` model within the transaction performing tenant-owned work. Do not retain tenant identity in connection- or session-scoped state.
+
+**Rationale:** Transaction scope limits the lifetime of tenant context and reduces leakage risk on reused connections and worker retries.
+
+**Impact:** Each request unit of work and worker execution attempt must establish context before tenant queries; transaction completion clears it. This decision does not select database roles, grants, or RLS policies.
+
+### P1.2.1-D4: Global administrator and organization assistance boundary
+
+**Decision:** Global `system_admin` status does not by itself grant tenant-owned data access or create an implicit all-tenant context. Any assistance requiring access beyond an organization's normal roles and permissions must be requested from that organization.
+
+**Rationale:** The global role and tenant membership are distinct; cross-tenant access must not arise from an unstated bypass.
+
+**Impact:** The access-request, approval, grant, scope, duration, revocation, and audit workflow remains undefined and out of scope for Task 1.2.1. No support or impersonation access is authorized by this decision.
