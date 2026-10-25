@@ -385,3 +385,59 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** Product-specific seat units avoid assuming one capacity formula across LMS, CRM, and AI entitlements. Restricting the interaction allowance to AI_PRO identifies the AI product boundary while preserving D17's approved per-learner values.
 
 **Impact:** These are logical validation and entitlement rules. Product-specific seat calculations, AI usage/pooling/reset behavior, and physical enforcement remain outside Task 1.1.2.
+
+---
+
+## Phase 1 Task 1.1.3 Decisions — Initial Database Schema Baseline
+
+**Decision date:** 2026-10-25
+**Status:** Project-owner decisions for Task 1.1.3
+**Approver:** Project owner, confirmed in the 2026-10-25 Task 1.1.3 planning interaction
+
+### P1.1.3-D1: Documentation-only migration plan
+
+**Decision:** Task 1.1.3 delivers a documented target schema baseline and ordered migration plan. It does not create executable migration files, run database schema checks, or claim that a database exists.
+
+**Rationale:** The Django application/models and runnable database context are established by later authorized Phase 1 tasks. The roadmap's migration-file/schema-check evidence is therefore deferred to those implementation tasks.
+
+**Impact:** Record the schema and sequence now. Create and validate migrations only after the Django app and its database configuration exist.
+
+### P1.1.3-D2: Client/account entity
+
+**Decision:** `Organization` is the client/account record for CRM_BASIC. Do not add a separate `Client` or `Account` entity to the initial schema.
+
+**Rationale:** Organization already represents the tenant/client boundary and supports the approved limited CRM_BASIC scope without duplicating client identity.
+
+**Impact:** Global client/account tracking and tenant account overview use `Organization`; access must still follow separately approved authorization and tenant-isolation rules.
+
+### P1.1.3-D3: Role-assignment identity
+
+**Decision:** Give `OrganizationMembershipRole` a UUID primary key and enforce uniqueness on `(user_profile_id, role_code)`.
+
+**Rationale:** A surrogate row key provides a straightforward identity for the association while the unique pair prevents duplicate assignment of the same role to a membership.
+
+**Impact:** Update the schema baseline and domain/ERD descriptions. Database enforcement is planned but not implemented in Task 1.1.3.
+
+### P1.1.3-D4: Initial license uniqueness
+
+**Decision:** Enforce one initial license row per `(organization_id, product_code)`. Renewal history/versioning is excluded from this baseline and remains deferred to Task 2.2.1.
+
+**Rationale:** This directly implements the approved Task 1.1.1 current-license cardinality without inventing a history model.
+
+**Impact:** The initial unique constraint may need a reviewed migration if Task 2.2.1 later approves multiple historical rows.
+
+### P1.1.3-D5: AI entitlement column representation
+
+**Decision:** Keep the monthly and daily AI entitlement columns on `SubscriptionLicense`. They are nullable for non-`AI_PRO` products and both must be present and positive for `AI_PRO`.
+
+**Rationale:** This uses the approved license entity without adding an unspecified entitlement table and encodes product applicability explicitly.
+
+**Impact:** Represent the rule as a conditional database CHECK constraint in the target schema. Actual allowance use, pooling, reservations, and reconciliation remain separate.
+
+### P1.1.3-D6: Enum persistence and enforcement
+
+**Decision:** Store enum values as strings, validate them through Django model choices, and enforce allowed values with PostgreSQL CHECK constraints. Do not use PostgreSQL-native ENUM types for the initial baseline.
+
+**Rationale:** This provides application-level validation and database-level integrity while keeping approved value changes manageable through migrations.
+
+**Impact:** Document the intended choices and checks; do not claim they are enforced until executable models/migrations are applied and schema checks pass.

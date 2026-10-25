@@ -55,10 +55,11 @@ An explicit association is needed because one membership may have multiple roles
 
 | Field | Type / meaning | Nullability | Notes |
 |---|---|---|---|
+| `id` | UUID primary key | Required | Task 1.1.3 uses a surrogate UUID key. |
 | `user_profile_id` | Foreign key to `UserProfile.id` | Required | Scopes each role assignment to one organization membership. |
 | `role_code` | Role enum/code | Required | Allowed values are specified in the Task 1.1.2 taxonomy; permission semantics belong to the later RBAC task. `system_admin` is global and is not an organization-membership role. |
 
-Logical uniqueness: one assignment per `(user_profile_id, role_code)`. Whether represented as a composite primary key or a separate surrogate key plus unique constraint is a schema decision for Task 1.1.3.
+Logical uniqueness: one assignment per `(user_profile_id, role_code)`, enforced by a unique constraint in the schema.
 
 ### SubscriptionLicense
 

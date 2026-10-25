@@ -95,6 +95,7 @@ To accommodate Layer 07 (Clients and Users: Individuals, Schools, SMEs, NGOs) wi
 +-----------------------------------------------------------------------+
 |                    ORGANIZATION_MEMBERSHIP_ROLE                       |
 +-----------------------------------------------------------------------+
+| id (UUID, PK)                                                         |
 | user_profile_id (FK -> user_profile.id)                               |
 | role_code (Enum: 'org_admin', 'instructor', 'student', 'parent',       |
 |            'sme_staff')                                               |
@@ -117,6 +118,7 @@ To accommodate Layer 07 (Clients and Users: Individuals, Schools, SMEs, NGOs) wi
 Task 1.1.2 defines the canonical enum values and logical validation rules. AI interaction entitlement fields apply only to `AI_PRO`; the approved learner-seat baseline is 1,000 interactions per month and 50 per day. Product-specific seat units and physical enforcement are documented separately from this conceptual ERD.
 `OrganizationMembershipRole` is unique per `(user_profile_id, role_code)`; global `system_admin` is not an organization membership role.
 The logical relationships are one `Organization` to many `UserProfile` memberships, one `UserProfile` to zero or many `OrganizationMembershipRole` assignments, and one `Organization` to zero or many `SubscriptionLicense` records.
+The initial physical schema baseline uses a UUID primary key for `OrganizationMembershipRole` and enforces uniqueness of `(user_profile_id, role_code)`. The initial license baseline has a unique `(organization_id, product_code)` pair and no renewal-history rows.
 
 ### 3.2 Row-Level Security (RLS) Implementation
 1. **Tenant Identification:** Each request passing through Django context attaches `request.user.userprofile.organization_id`.

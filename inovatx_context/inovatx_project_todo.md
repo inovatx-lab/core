@@ -169,7 +169,9 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
   - Evidence location: `inovatx_context/inovatx_core_enum_taxonomy.md` and `inovatx_context/inovatx_task_1_1_2_traceability.md`; aligned PRD, UML, domain model, scope, and decision-log references.
 - Task 1.1.3: Define the initial database migration plan.
   - Deliverable: migration plan and schema baseline
-  - Evidence: migration files and schema checks
+  - Evidence: documented target schema, ordered migration plan, constraint inventory, and rollback considerations; executable migration files and database schema checks are deferred to the authorized Django app/model tasks.
+  - Status: Complete; project owner approved the documentation-only schema baseline and migration plan on 2026-10-25.
+  - Evidence location: `inovatx_context/inovatx_initial_schema_migration_plan.md` and `inovatx_context/inovatx_task_1_1_3_traceability.md`.
 
 ### Activity 1.2: Define tenant isolation and security contract
 - Task 1.2.1: Define tenant context strategy for requests and workers.

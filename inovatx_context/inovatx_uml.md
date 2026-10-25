@@ -251,6 +251,7 @@ The ERD contains the entities and relationships explicitly described in the PRD.
     }
 
     ORGANIZATION_MEMBERSHIP_ROLE {
+        uuid id PK
         uuid user_profile_id FK
         enum role_code "org_admin | instructor | student | parent | sme_staff"
     }
@@ -270,7 +271,7 @@ The ERD contains the entities and relationships explicitly described in the PRD.
 
 **Database and isolation constraints:** the PRD places Django application data in PostgreSQL database `inovatx_db` with RLS and Moodle data in `moodle_db`. Because a user may have memberships in multiple organizations, tenant context must be selected from an explicitly identified and validated `UserProfile` membership; the PRD's singular `request.user.userprofile.organization_id` example must not be implemented literally. Middleware injects the validated organization using `SET LOCAL`; tenant tables enable and force RLS; policies compare `organization_id` with the session setting; request teardown resets borrowed connections. Missing, invalid, or unauthorized membership context must fail closed. `student_data` is used as an RLS example, but its schema and relationship are not defined.
 
-**Resolved cardinality for Task 1.1.1:** one auth user may have memberships in multiple organizations, with at most one `UserProfile` per `(user_id, organization_id)`. One membership may have multiple organization-scoped role assignments. An organization may have multiple product licenses, with at most one current license per `(organization_id, product_code)`. These are recorded as project-owner decisions P1.1.1-D1 and P1.1.1-D2 in the Phase 0 decision log. Task 1.1.2 defines canonical values and logical validation; physical constraints and lifecycle transitions remain assigned to their roadmap tasks.
+**Resolved cardinality and schema baseline:** one auth user may have memberships in multiple organizations, with at most one `UserProfile` per `(user_id, organization_id)`. A membership may have multiple role assignments with a UUID primary key and uniqueness on `(user_profile_id, role_code)`. An organization may have multiple product licenses, with at most one initial license per `(organization_id, product_code)`. These cardinalities are recorded in the Task 1.1.1 decision log; Task 1.1.2 defines canonical values; the remaining initial schema plan is documented in `inovatx_initial_schema_migration_plan.md`. RLS policies, database bootstrap, and application roles remain unapproved.
 
 **Schema omissions, not added as requirements:** payments, invoices, renewals, refunds, parent-child links, branches, enrollment records, courses, quizzes, assessments, grades, AI interactions, token-usage ledger entries, audit events, and webhook deliveries. These may be necessary implementation entities, but the PRD does not specify them.
 

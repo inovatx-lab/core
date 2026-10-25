@@ -14,6 +14,7 @@ INOVEXA/
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
     ├── inovatx_core_enum_taxonomy.md
+    ├── inovatx_initial_schema_migration_plan.md
     ├── inovatx_phase0_exit_review.md
     ├── inovatx_phase1_core_domain_model.md
     ├── inovatx_architecture_baseline.md
@@ -28,6 +29,7 @@ INOVEXA/
     ├── inovatx_task_traceability_template.md
     ├── inovatx_task_1_1_1_traceability.md
     ├── inovatx_task_1_1_2_traceability.md
+    ├── inovatx_task_1_1_3_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
