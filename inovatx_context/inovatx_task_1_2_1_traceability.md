@@ -31,7 +31,7 @@
 
 ## Acceptance criteria
 
-1. Define request tenant selection as an explicit organization UUID resolved only through a matching, validated `UserProfile` for the authenticated user; defer the route/header/session carrier to Task 1.3.3.
+1. Define request tenant selection as an explicit organization UUID; establish it as candidate transaction-local context, perform only a `UserProfile` membership lookup constrained by authenticated user and selected organization under RLS, and authorize tenant business-data access only after a match. Defer the route/header/session carrier to Task 1.3.3.
 2. Define tenant-scoped worker context as explicit and independent of ambient request, thread, or connection state; require `organization_id`, include actor/membership identifiers when applicable, preserve explicit provenance for system-originated work, and revalidate membership and applicable authorization when queued work executes.
 3. Specify transaction-local tenant database context using the PRD's `SET LOCAL` approach; do not retain tenant identity in connection/session state.
 4. State that global `system_admin` authority does not itself grant tenant-data access or create an implicit all-tenant context. Any access beyond an organization's normal permissions must be requested from that organization; the request, approval, grant, and audit workflow is not designed by this task.
@@ -46,13 +46,15 @@
 
 ## Approved decisions and dependencies
 
-- A request must explicitly select an organization UUID. Treat it as untrusted input and resolve the authenticated user's matching `UserProfile` membership before tenant data access. The transport carrier is deferred to Task 1.3.3.
+- A request must explicitly select an organization UUID. Treat it as untrusted input, establish it as candidate transaction-local context, and resolve only the authenticated user's matching `UserProfile` membership under RLS before tenant business-data access. The transport carrier is deferred to Task 1.3.3.
+- RLS-compatible validation order, confirmed during Task 1.2.3 planning: establish the syntactically valid selected organization as candidate transaction-local context, query only the matching user/organization membership under RLS, and perform no tenant business-data access until that membership is validated.
 - Every tenant-scoped worker task must carry explicit organization identity. Include user/membership identity for user-originated work when applicable and preserve explicit event/task provenance for system-originated work; do not inherit ambient request or thread context.
 - For user-originated queued work, revalidate the supplied membership and applicable authorization when the worker executes, rather than treating enqueue-time authorization or payload identity as sufficient.
 - Tenant database context is transaction-local, following the PRD's `SET LOCAL` requirement; do not depend on a connection/session-scoped tenant value.
 - A global `system_admin` role does not imply tenant-data access. Access beyond organization-granted roles requires a request to the organization; the workflow and implementation remain undefined and out of scope.
 - Missing, invalid, or unauthorized tenant context must fail closed. Task 1.2.3 owns detailed failure semantics.
 - Database bootstrap, application roles/privileges, and RLS policy design were approved in Task 1.2.2 decisions; their implementation remains blocked until the Django schema and PostgreSQL test environment are available.
+- The membership-validation ordering was clarified and approved under Task 1.2.3 decision P1.2.3-D5 on 2026-10-25.
 
 ## Evidence and completion
 

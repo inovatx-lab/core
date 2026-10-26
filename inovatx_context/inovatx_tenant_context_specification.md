@@ -2,7 +2,7 @@
 
 **Roadmap task:** 1.2.1 — Define tenant context strategy for requests and workers
 **Phase / activity:** Phase 1 / Activity 1.2
-**Status:** Approved by project owner on 2026-10-25
+**Status:** Approved by project owner on 2026-10-25; RLS-compatible membership-validation ordering clarified under P1.2.3-D5 on 2026-10-25
 **Traceability:** [Task 1.2.1 traceability record](inovatx_task_1_2_1_traceability.md)
 **Sources:** PRD §3.2, FR-05, NFR-01, NFR-03; UML §§5–6, 8; Task 1.1.1 domain model and decision P1.1.1-D1; Phase 0 exit review.
 
@@ -26,11 +26,12 @@ The context identifies one organization for a tenant-scoped operation. It is not
 For a tenant-scoped request, the application must:
 
 1. Authenticate the caller before resolving tenant context.
-2. Require an explicit organization UUID selector. Treat it as untrusted input.
-3. Resolve the `UserProfile` membership matching both the authenticated user and the selected organization. Reject the operation if that membership does not exist or cannot be validated.
-4. Apply the authorization rule for the requested resource and action. Membership selection alone is not permission.
-5. Before any tenant-owned database query or mutation, establish the validated organization identifier as transaction-local database context.
-6. Keep all tenant-owned database work within the transaction where that context was established. Transaction completion clears the `SET LOCAL` value; request teardown must also leave the borrowed connection in a clean state.
+2. Require an explicit organization UUID selector and validate its syntax. Treat the value as an untrusted candidate, not proof of membership or permission.
+3. Begin the transaction and set the candidate organization as transaction-local database context. This is necessary because the membership table itself is protected by RLS.
+4. Perform only the membership-validation lookup, constrained by both the authenticated user ID and candidate organization ID. RLS further limits the lookup to the candidate organization. Do not query tenant business data at this stage.
+5. If no matching membership exists or the lookup cannot be validated, stop and roll back using the approved failure policy; do not fall back to another organization or an unscoped query.
+6. Apply the authorization rule for the requested resource and action. Membership selection alone is not permission.
+7. Only after membership and applicable authorization succeed may the request access tenant business data. Keep that work within the transaction where context was established. Transaction completion clears the `SET LOCAL` value; request teardown must also leave the borrowed connection in a clean state.
 
 The request selector's transport (for example, route, header, or session selection) is intentionally deferred until the Core API contract is defined in Task 1.3.3. Whichever transport is selected, it must identify one organization and pass through the same authenticated membership validation; no transport value is trusted as authorization.
 
@@ -40,9 +41,9 @@ The PRD does not define a membership status field. This task therefore requires 
 
 Every tenant-scoped task must carry an explicit `organization_id`. A worker must establish its context from that task's own validated inputs, not from the request that enqueued it, a shared thread, a process-global variable, or a connection's prior state.
 
-For user-originated work, the task context must preserve the initiating user and membership identifiers when applicable. The worker must validate that the supplied membership belongs to the supplied organization and user, then revalidate the applicable authorization when the task executes. Payload identity is not authorization. If the membership or applicable authorization cannot be validated, the task must not perform tenant-owned operations.
+For user-originated work, the task context must preserve the initiating user and membership identifiers when applicable. At execution, the worker begins a fresh transaction, sets the explicit organization as candidate context, then performs only the membership lookup constrained by the supplied user, membership, and organization identifiers. It revalidates applicable authorization before tenant business operations. Payload identity is not authorization. If membership or applicable authorization cannot be validated, the task must stop and perform no tenant business operation.
 
-For system- or event-originated work, the task must preserve explicit event/task provenance and its target organization. This task does not define a service-principal model, broker authentication mechanism, or database role. Those mechanisms must not be inferred from the presence of an event identifier or organization UUID.
+For system- or event-originated work, the task must preserve explicit event/task provenance and its target organization. Before tenant business operations, the task must validate its provenance and applicable task authority under the relevant approved integration contract. This task does not define a service-principal model, broker authentication mechanism, or database role. Those mechanisms must not be inferred from the presence of an event identifier or organization UUID.
 
 Each worker execution attempt must establish transaction-local tenant context before tenant-owned database access. Retries start with fresh context resolution and transaction state; they must not reuse a tenant setting from a previous attempt.
 

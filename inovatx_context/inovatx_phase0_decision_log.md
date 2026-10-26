@@ -450,11 +450,11 @@ The approved answers below record the adopted decisions. This register reflects 
 
 ### P1.2.1-D1: Explicit request organization selection
 
-**Decision:** A tenant-scoped request must explicitly select an organization UUID. Resolve the authenticated user's matching `UserProfile` membership before accessing tenant-owned data. Defer the selector's route/header/session transport to Task 1.3.3.
+**Decision:** A tenant-scoped request must explicitly select an organization UUID. After authentication and selector syntax validation, establish the selected organization as candidate transaction-local context and perform only a `UserProfile` lookup matching both the authenticated user and selected organization under RLS. Do not access tenant business data until the membership is validated. Defer the selector's route/header/session transport to Task 1.3.3.
 
 **Rationale:** One global user may have memberships in multiple organizations; neither a singular profile nor an implicit default can safely select the tenant.
 
-**Impact:** Request identifiers are selectors, not authorization. The eventual API contract must preserve explicit selection and membership validation.
+**Impact:** Request identifiers are selectors, not authorization. The eventual API contract must preserve explicit selection and membership validation. The scoped membership lookup is the only tenant query permitted before membership validation; it is required because `UserProfile` is RLS-protected.
 
 ### P1.2.1-D2: Explicit worker context and execution-time authorization
 
@@ -524,4 +524,58 @@ The approved answers below record the adopted decisions. This register reflects 
 
 **Rationale:** The repository currently has no Django project or model tables, and the available environment has no PostgreSQL server/client or Docker. Fixture-only tests or guessed table names would not satisfy the actual-schema test requirement.
 
-**Impact:** Task 1.2.2 remains blocked and incomplete. Do not claim RLS implementation or passing tests until the actual schema suite passes under the runtime identity.
+**Impact:** Task 1.2.2 remains blocked and incomplete. Do not claim RLS implementation or passing tests until the actual schema suite passes under the runtime identity. The initial sequence in this decision was subsequently updated by P1.2.3-D6.
+
+## Phase 1 Task 1.2.3 Decisions — Tenant Failure Policy
+
+**Decision date:** 2026-10-25
+**Status:** Policy decisions and documentation approved; implementation tests remain pending the application/database environment
+**Approver:** Project owner and technical/security owner, confirmed in the 2026-10-25 Task 1.2.3 planning interaction
+
+### P1.2.3-D1: Request error semantics and organization privacy
+
+**Decision:** Reject unauthenticated requests through the authentication layer with `401`; reject missing or malformed organization UUID selectors with `400`; return the same `404` outcome for an absent organization and for an organization with no matching authenticated-user membership; and return `403` for a member denied a resource/action.
+
+**Rationale:** Separate authentication, selector syntax, membership, and action authorization failures while preventing organization-existence disclosure.
+
+**Impact:** The request transport and exact API error envelope remain with Task 1.3.3. No denial permits a default-organization or unscoped fallback.
+
+### P1.2.3-D2: Internal context invariant failure
+
+**Decision:** If application code reaches tenant business data without validated transaction-local context, or context disagrees with the validated organization, stop, roll back, return a generic `500` with a correlation identifier, and emit a sanitized operational/security event.
+
+**Rationale:** Missing internal context is a server invariant failure, not a client authorization choice; exposing database/policy details or continuing unscoped is unsafe.
+
+**Impact:** The application must not broadly catch database errors or reinterpret absent RLS rows as permission to run an unscoped query.
+
+### P1.2.3-D3: Permanent worker context failures
+
+**Decision:** Missing/malformed organization context, invalid provenance, mismatched actor/membership/organization, or no-longer-valid membership/authorization is a permanent worker failure with no automatic retry and no tenant business operation. Use the task's existing terminal/dead-letter mechanism where applicable. Transient infrastructure failures may follow their approved retry policy, with context rebuilt and revalidated on every attempt.
+
+**Rationale:** Retrying invalid authority cannot repair it and can repeat unsafe work; transient recovery remains governed by the separately approved retry policy.
+
+**Impact:** Do not introduce new task lifecycle states or treat a context failure as a transient database/network error.
+
+### P1.2.3-D4: Sanitized audit and operational events
+
+**Decision:** Emit minimal structured security events for tenant-selector rejection, membership denial, internal context invariant failure, and invalid worker context. Include timestamp, event category, source component, and request/task correlation ID; include actor/organization identifiers only when validated and needed. Do not log credentials, tokens, full payloads, learner content, raw SQL, or database exception details.
+
+**Rationale:** Support investigation without leaking tenant information or secrets through logs.
+
+**Impact:** Apply the already-approved 365-day audit/security-event retention. This decision adds no alert thresholds.
+
+### P1.2.3-D5: RLS-compatible membership validation order
+
+**Decision:** After authentication and organization UUID syntax validation, establish the selected organization as candidate transaction-local context. Under RLS, perform only the membership lookup constrained by authenticated user ID and selected organization ID. If no matching membership exists, stop and roll back; do not access tenant business data. Apply the same sequence to user-originated worker membership revalidation.
+
+**Rationale:** The approved RLS baseline protects `UserProfile`; membership validation must occur within the selected tenant context rather than through an unscoped query.
+
+**Impact:** This refines the Task 1.2.1 context contract. Candidate context is not authorization; the membership must still match, and the custom-GUC threat limitation approved under P1.2.2-D4 remains.
+
+### P1.2.3-D6: Continue Activity 1.2 before Django prerequisites
+
+**Decision:** After committing and pushing the Task 1.2.2 RLS design checkpoint, proceed to Task 1.2.3 before moving to Task 1.3.1/model prerequisites. Task 1.2.2 remains blocked until the actual Django schema and PostgreSQL test environment are available.
+
+**Rationale:** The project owner directed continuation through the remaining Activity 1.2 security-contract task before starting Activity 1.3.
+
+**Impact:** This updates the earlier sequencing recorded under P1.2.2-D5. It does not remove the implementation prerequisites or authorize claiming Task 1.2.2 complete.

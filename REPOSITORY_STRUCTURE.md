@@ -18,6 +18,7 @@ INOVEXA/
     ├── inovatx_phase0_exit_review.md
     ├── inovatx_phase1_core_domain_model.md
     ├── inovatx_tenant_context_specification.md
+    ├── inovatx_tenant_failure_policy.md
     ├── inovatx_architecture_baseline.md
     ├── inovatx_ai_coding_guardrails.md
     ├── inovatx_cost_capacity_failure_analysis.md
@@ -33,6 +34,7 @@ INOVEXA/
     ├── inovatx_task_1_1_3_traceability.md
     ├── inovatx_task_1_2_1_traceability.md
     ├── inovatx_task_1_2_2_traceability.md
+    ├── inovatx_task_1_2_3_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
