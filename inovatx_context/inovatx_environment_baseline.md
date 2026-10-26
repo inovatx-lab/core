@@ -1,6 +1,6 @@
 # INOVATX Environment Baseline — Phase 0 Planning
 
-**Status:** Planning baseline; not an implementation or deployment authorization
+**Status:** Planning baseline with Task 1.3.1 local Django implementation update; not a deployment authorization
 **Roadmap task:** 0.2.2 — Establish environment baseline
 **Sources:** [PRD](inovatx_product_requirements_document_prd.md), [system models](inovatx_uml.md), [Phase 0 decision log](inovatx_phase0_decision_log.md)
 
@@ -8,8 +8,8 @@
 
 | Component | Documented target | Planned role | Status / qualification |
 |---|---|---|---|
-| Django Core | Django 5.x, Python 3.12+ | Core application, identity, billing, tenant-aware APIs | Application code, image, exact versions, and runtime settings do not exist in this workspace. |
-| PostgreSQL | PostgreSQL 16+ | Core data with RLS and Moodle data | One PostgreSQL service with separate `inovatx_db` and `moodle_db` databases is the approved planning topology. The bootstrap mechanism, credentials, roles, grants, and RLS setup remain undefined. |
+| Django Core | Django 5.x, Python 3.12+ | Core application, identity, billing, tenant-aware APIs | Task 1.3.1 adds a local Django 5.2 project skeleton and environment-driven PostgreSQL settings. Domain models/admin, container image, PostgreSQL-backed migration validation, and production settings remain pending. |
+| PostgreSQL | PostgreSQL 16+ | Core data with RLS and Moodle data | One PostgreSQL service with separate `inovatx_db` and `moodle_db` databases is the approved planning topology. Task 1.2.2 approved the Core role/RLS design; database provisioning, grants, and service credentials remain unimplemented. |
 | Redis | Redis 7.x | Celery broker/cache and application caching as approved | Persistence, authentication, memory policy, and production configuration remain undefined. |
 | Moodle LMS | Moodle 4.x, PHP 8.2+ / Apache | Learning hub, quizzes, cohorts, and gradebook | Exact Moodle release, image/source, plugins, configuration, and database initialization are not selected. |
 | FastAPI AI | FastAPI, Python 3.12+, Pydantic v2 | Internal AI orchestration and SSE service | Application code, image, provider integration, runtime settings, and service authentication are not present. |
@@ -54,4 +54,4 @@ The root [Compose planning skeleton](../docker-compose.yml) records the intended
 
 ## Validation boundary
 
-This baseline is a plan and static configuration artifact only. No containers were started, no images were built, and no service behavior, security controls, performance targets, or production readiness are asserted by its creation.
+The container/network plan remains planning-only. Task 1.3.1 validated Django settings and system checks locally, but no PostgreSQL service is available at `127.0.0.1:5432`; database-backed migrations, RLS, containers, images, service integration, performance targets, and production readiness are not validated by the local project bootstrap.

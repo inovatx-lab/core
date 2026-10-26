@@ -1,44 +1,38 @@
-# Memory — INOVATX Phase 0 Baseline
+# Memory — INOVATX Task 1.3.1 Local Django Foundation
 
-Last updated: 2026-10-18 12:40 +03:00
+Last updated: 2026-10-26 19:20 +03:00
 
 ## What was built
 
-- Added root `AGENTS.md` with project context links and guardrails.
-- Updated `REPOSITORY_STRUCTURE.md` to represent the actual docs-first workspace.
-- Completed Activity 0.2 locally:
-  - Task 0.2.1: branch policy and current workspace structure documented; local `main` and `develop` exist.
-  - Task 0.2.2: added `inovatx_context/inovatx_environment_baseline.md` and a planning-only root `docker-compose.yml`.
-  - Task 0.2.3: added `inovatx_context/inovatx_architecture_baseline.md` with Mermaid diagram, PRD/UML traceability, trust boundaries, and unresolved items.
-- Updated `inovatx_context/inovatx_project_todo.md` with completion status and evidence for Tasks 0.2.1–0.2.3.
+- Created a minimal Django 5.2 project with root `manage.py`, `config/`, and a `core` app.
+- Added PostgreSQL-only environment-driven settings, `requirements.txt`, and PowerShell local setup guidance in `README.md`.
+- Added Task 1.3.1 traceability and recorded the selected built-in `auth.User` in the decision log and schema plan.
+- Updated repository structure, environment/roadmap evidence, and prior tenant-task docs to distinguish the new Django skeleton from still-missing models, middleware, workers, and PostgreSQL testing.
 
 ## Decisions made
 
-- The Compose file is a planning skeleton, not a runnable stack or deployment authorization.
-- PostgreSQL planning topology is one service with separate logical `inovatx_db` and `moodle_db` databases.
-- Nginx is the only planned published ingress; FastAPI remains private on the application network.
-- Browser/learner delivery of AI SSE through Moodle remains unresolved; do not invent a public FastAPI route.
-- Activity 0.3 is approved as the next Phase 0 planning/guardrail work. This is not authorization for product implementation.
+- Use Python 3.12, Django 5.2 LTS, PostgreSQL only, Django built-in `auth.User`, `requirements.txt`, and environment-only secrets/configuration.
+- Task 1.3.1 does not include domain models/admin, API routes, tenant middleware/RLS, database provisioning, or production deployment.
+- Task 1.2.3 documentation commit `185fa99` is on `feature/T1.2.3` and is published to `origin`.
 
 ## Problems solved
 
-- Git signing worked interactively after this environment failed to unlock the encrypted key via agent. For future signed commits, provide the user an interactive PowerShell command rather than repeatedly trying to sign in the tool session.
-- Docker is unavailable in the environment; prior static Compose YAML and structural checks passed, but runtime validation was not possible.
+- Verified the prior Task 1.2.3 commit includes an SSH signature; local signature display warns because `gpg.ssh.allowedSignersFile` is not configured.
+- Identified that Django `runserver` checks migration history at startup, so it cannot establish a successful local server boot when PostgreSQL is unavailable.
 
 ## Current state
 
-- Current branch: `feature/T0.2.3`; working tree clean.
-- Latest commit: `103a123` (`docs(phase0): define minimum viable architecture`), signed.
-- Task 0.2.2 is committed on `feature/T0.2.2` as `9a57e2c`.
-- The GitHub remote has no advertised branches and local work has not been pushed. GitHub branch protections/publication remain pending.
-- No Activity 0.3 deliverables have been created yet.
+- Current branch: `feature/T1.3.1`.
+- The scaffold passes `manage.py check`, `compileall`, and a WSGI request smoke test (expected 404 because no routes are defined). Settings runtime validation confirmed PostgreSQL and `auth.User`; missing `DJANGO_SECRET_KEY` fails explicitly.
+- No PostgreSQL server is available at `127.0.0.1:5432`. `makemigrations --check --dry-run` found no model changes but could not check database migration history; `runserver` could not complete its startup check.
+- Task 1.3.1 is incomplete: successful development-server boot and PostgreSQL-backed migration setup validation remain unverified. Do not proceed to Task 1.3.2 until the Task 1.3.1 deliverables are met.
+- Task 1.3.1 changes are pending commit/push. This memory is staged and should be included with the task changes by the user's latest instruction.
 
 ## Next session starts with
 
-Begin Activity 0.3, starting with Task 0.3.1: define AI coding guardrails and phase-lock policy. Inspect the full roadmap/task evidence and existing project instructions first, then create the developer checklist and code-generation protocol. Continue one task per feature branch and respect the Phase 0 approval boundary.
+- Check whether the Task 1.3.1 commit was created and published. If not, finish commit/push on `feature/T1.3.1`, then verify the remote ref and clean worktree.
+- Resume Task 1.3.1 validation with an available PostgreSQL 16+ environment; only then consider Task 1.3.2, after the applicable traceability and quality-gate process.
 
 ## Open questions
 
-- Confirm the preferred Task 0.3.1 document location/name if the existing `AGENTS.md` and project roadmap do not settle it.
-- GitHub remote repository state, branch publication, and branch protection are still unverified/configuration-pending.
-- The private FastAPI-to-learner SSE forwarding mechanism and LLM hosting/network boundary remain unresolved architecture items.
+- When and where will a PostgreSQL test service be made available for local migration validation?

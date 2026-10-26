@@ -579,3 +579,17 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** The project owner directed continuation through the remaining Activity 1.2 security-contract task before starting Activity 1.3.
 
 **Impact:** This updates the earlier sequencing recorded under P1.2.2-D5. It does not remove the implementation prerequisites or authorize claiming Task 1.2.2 complete.
+
+## Phase 1 Task 1.3.1 Decisions — Django Local Foundation
+
+**Decision date:** 2026-10-26
+**Status:** Project-owner choices confirmed; implementation and validation in progress
+**Approver:** Project owner, confirmed in the 2026-10-26 Task 1.3.1 planning interaction
+
+### P1.3.1-D1: Local Django foundation and authentication model
+
+**Decision:** Use Python 3.12 and Django 5.2 LTS with a `requirements.txt` workflow. Place `manage.py` at the repository root, use a `config` project package and `core` Django app, configure Django's built-in `auth.User`, and use PostgreSQL as the only database backend. Read required local secrets and database connection settings from environment variables; do not commit `.env` files, add a dotenv dependency, or provide an SQLite fallback.
+
+**Rationale:** This establishes the smallest local Django foundation within the approved Phase 1 scope, matches the PRD's Python/Django/PostgreSQL stack, and freezes the authentication model before the first Core membership migration.
+
+**Impact:** Task 1.3.2 models must reference the configured user via `settings.AUTH_USER_MODEL`. This decision does not authorize domain-model/admin work under Task 1.3.1, create a database service, implement RLS, or configure production deployment. PostgreSQL-dependent migration behavior must be validated against PostgreSQL; SQLite or a static configuration check is not a substitute.

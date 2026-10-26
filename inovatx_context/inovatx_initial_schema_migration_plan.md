@@ -42,7 +42,7 @@ The approved values for organization types, membership roles, product codes, and
 
 ### Authentication-user dependency
 
-`UserProfile.user_id` references the primary key of the configured Django authentication model. The PRD depicts an integer `auth_user.id`, while the project has not yet created a Django application or selected/frozen `AUTH_USER_MODEL`. The first Core migration must depend on the actual configured authentication model's initial migration and use a compatible key type. Do not hard-code a table name or key type in an executable migration before Task 1.3.1 establishes that configuration.
+`UserProfile.user_id` references the primary key of Django's built-in `auth.User`, selected for the initial project configuration under decision P1.3.1-D1. The first Core migration must depend on the configured authentication model's initial migration and use a compatible key type; model code should reference it through `settings.AUTH_USER_MODEL`. This resolves the authentication-model prerequisite only; it does not settle other open physical-schema choices.
 
 ## 3. Constraint inventory
 

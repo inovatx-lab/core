@@ -10,7 +10,7 @@
 
 This policy defines how requests and workers fail when tenant context is absent, malformed, unauthorized, or inconsistent. It prohibits default-tenant behavior, unscoped fallback, and disclosure of another organization's existence.
 
-This is a behavior specification and future test matrix, not middleware, worker, API, or RLS implementation. The exact selector transport and response schema belong to Task 1.3.3. The repository has no Django application or PostgreSQL test environment yet; the cases below are acceptance criteria, not tests claimed to have run.
+This is a behavior specification and future test matrix, not middleware, worker, API, or RLS implementation. The exact selector transport and response schema belong to Task 1.3.3. A minimal Django project now exists under Task 1.3.1, but tenant middleware, workers, domain models, and a PostgreSQL test environment are not yet available; the cases below are acceptance criteria, not tests claimed to have run.
 
 ## 2. Request decision policy
 

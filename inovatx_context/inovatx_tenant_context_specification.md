@@ -8,7 +8,7 @@
 
 ## 1. Purpose and boundary
 
-This specification defines how tenant context is selected, validated, propagated, and bounded for Django requests and Celery work. It is a design contract, not existing application behavior. The repository currently has no Django middleware, worker implementation, database connection setup, or RLS policy implementation.
+This specification defines how tenant context is selected, validated, propagated, and bounded for Django requests and Celery work. It is a design contract, not existing tenant-aware application behavior. The repository now has a minimal Django project and PostgreSQL-only settings from Task 1.3.1, but no tenant middleware, worker implementation, domain models, or RLS policy implementation.
 
 The context identifies one organization for a tenant-scoped operation. It is not a substitute for authentication, membership validation, or resource/action authorization. It does not grant a user, worker, or global administrator permission to access data merely because an organization identifier is present.
 

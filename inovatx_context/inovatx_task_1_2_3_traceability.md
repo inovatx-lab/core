@@ -61,7 +61,7 @@
 - Check or artifact: Tenant failure policy, this traceability record, aligned decision/source updates, and documentation validation.
 - Result: Policy documentation and test matrix approved by project owner/technical-security owner on 2026-10-25. No middleware, database, or runtime tests have been implemented or run.
 - Location: `inovatx_tenant_failure_policy.md`, `inovatx_task_1_2_3_traceability.md`, and directly referenced project sources.
-- Validation boundary: The repository currently has no Django project or PostgreSQL test environment. Tests described in the policy are acceptance cases, not executed evidence.
+- Validation boundary: A minimal Task 1.3.1 Django project now exists, but tenant middleware, workers, domain models, and a PostgreSQL test environment are not available. Tests described in the policy are acceptance cases, not executed evidence.
 
 **Completion decision:** Policy approved; task completion remains pending implementation of the focused tests in an available Django/PostgreSQL environment.
 **Reviewer / approver and date:** Project owner/technical-security owner approved the policy documentation on 2026-10-25; test evidence pending.

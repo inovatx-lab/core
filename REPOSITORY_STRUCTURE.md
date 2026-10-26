@@ -1,14 +1,32 @@
 # Repository Structure — INOVATX
 
-## Current documentation-first workspace
+## Current workspace
 
-This workspace currently contains project governance, architecture, and Phase 1 domain-specification documents. The product source tree and runtime infrastructure have not been created here; planning documents and model specifications must not be treated as implemented application code.
+This workspace contains project governance and architecture documents plus the minimal Django local foundation created under Task 1.3.1. Core domain models/admin and runtime infrastructure have not been implemented; planning documents and model specifications must not be treated as application behavior.
 
 ```text
 INOVEXA/
 ├── AGENTS.md
 ├── BRANCH_POLICY.md
 ├── REPOSITORY_STRUCTURE.md
+├── README.md                    # Local Django development instructions
+├── requirements.txt             # Django and PostgreSQL driver
+├── manage.py
+├── config/                       # Django project settings and entry points
+│   ├── __init__.py
+│   ├── asgi.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── core/                         # Django Core app skeleton; no domain models yet
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── tests.py
+│   ├── views.py
+│   └── migrations/
+│       └── __init__.py
 ├── docker-compose.yml           # Phase 0 planning skeleton; not runnable
 ├── .gitignore
 └── inovatx_context/
@@ -35,6 +53,7 @@ INOVEXA/
     ├── inovatx_task_1_2_1_traceability.md
     ├── inovatx_task_1_2_2_traceability.md
     ├── inovatx_task_1_2_3_traceability.md
+    ├── inovatx_task_1_3_1_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
@@ -43,7 +62,7 @@ INOVEXA/
         └── Phase 0 Decision Log.docx
 ```
 
-The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack.
+The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack. The Django settings require PostgreSQL environment values and do not fall back to SQLite; a local PostgreSQL-backed migration check remains pending.
 
 ## Git and branches
 

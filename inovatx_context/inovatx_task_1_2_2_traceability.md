@@ -51,19 +51,19 @@
 
 **In scope:** RLS implementation for the approved Core schema, runtime-role grants needed for the RLS baseline, and PostgreSQL tenant-isolation integration tests.
 
-**Out of scope:** Selecting `AUTH_USER_MODEL`, implementing Django middleware or application authorization, defining support-access approval workflow, public/service deployment, secrets-delivery tooling, and production database provisioning.
+**Out of scope:** Changing the `AUTH_USER_MODEL` selected under Task 1.3.1-D1, implementing Django middleware or application authorization, defining support-access approval workflow, public/service deployment, secrets-delivery tooling, and production database provisioning.
 
 **Implementation blockers:**
-- No Django project or model tables currently exist; the repository is documentation-first.
-- Task 1.1.3 leaves `AUTH_USER_MODEL` compatibility and other physical schema prerequisites for the authorized Django model work.
-- No PostgreSQL server/client or Docker runtime is available in the current environment; no RLS test can be executed here against the real schema.
+- The Task 1.3.1 Django project and built-in `auth.User` configuration now exist, but Core domain models and tenant tables have not yet been created.
+- Task 1.1.3's remaining physical schema prerequisites belong to the authorized Django model work in Task 1.3.2.
+- No PostgreSQL server is available locally, and no PostgreSQL client or Docker runtime is installed; no RLS test can be executed against the actual schema here.
 - The owner approved proceeding to Task 1.3.1 and the model prerequisites for Task 1.3.2 before returning to implement this task. No fixture-only test will be represented as validation of the actual Django schema.
 
 ## Evidence and completion
 
 **Evidence:**
 - Check or artifact: Approved design choices and repository/environment inspection.
-- Result: Design decisions recorded; implementation blocked. Repository contains no product source, Django is unavailable, and PostgreSQL server/client and Docker are unavailable. The required actual-schema integration tests have not been run.
+- Result: Design decisions recorded; implementation blocked. A minimal Django 5.2 project exists, but there are no Core tenant models/tables and the local PostgreSQL connection is unavailable. The required actual-schema integration tests have not been run.
 - Location: this record; `inovatx_phase0_decision_log.md`; `inovatx_tenant_context_specification.md`; `inovatx_phase0_exit_review.md`.
 - Validation boundary: No RLS SQL, migrations, database roles/grants, or tests have been implemented or executed.
 

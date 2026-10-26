@@ -193,7 +193,9 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 ### Activity 1.3: Establish Django application foundation
 - Task 1.3.1: Set up Django app skeleton and settings for local environment.
   - Deliverable: project bootstrap
-  - Evidence: working app boot and migration setup
+  - Evidence: local Django project/settings, successful system and syntax checks, and PostgreSQL-backed migration setup validation.
+  - Status: In progress; Django 5.2 project skeleton and PostgreSQL-only environment settings created. Local system checks pass; PostgreSQL-backed migration/app-server startup validation remains blocked because no local PostgreSQL service is available.
+  - Evidence location: `README.md`, `requirements.txt`, `config/`, `core/`, and `inovatx_context/inovatx_task_1_3_1_traceability.md`.
 - Task 1.3.2: Build minimal Django admin and ORM models.
   - Deliverable: working model layer with admin access
   - Evidence: model tests and admin smoke checks
