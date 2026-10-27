@@ -3,7 +3,7 @@
 **Task ID and title:** 1.2.3 — Define fail-closed behavior for missing tenant context
 **Phase / activity:** Phase 1 / Activity 1.2
 **Owner:** Project owner and technical/security owner
-**Status:** In progress — policy approved; implementation tests blocked on application/database environment
+**Status:** In progress — policy approved; implementation tests pending tenant behavior/schema
 
 ## Outcome and sources
 
@@ -59,9 +59,9 @@
 
 **Evidence:**
 - Check or artifact: Tenant failure policy, this traceability record, aligned decision/source updates, and documentation validation.
-- Result: Policy documentation and test matrix approved by project owner/technical-security owner on 2026-10-25. No middleware, database, or runtime tests have been implemented or run.
+- Result: Policy documentation and test matrix approved by project owner/technical-security owner on 2026-10-25. The local Django/PostgreSQL foundation is now available, but tenant middleware, worker behavior, and tenant-domain schema remain unimplemented; no policy implementation tests have been run.
 - Location: `inovatx_tenant_failure_policy.md`, `inovatx_task_1_2_3_traceability.md`, and directly referenced project sources.
-- Validation boundary: A minimal Task 1.3.1 Django project now exists, but tenant middleware, workers, domain models, and a PostgreSQL test environment are not available. Tests described in the policy are acceptance cases, not executed evidence.
+- Validation boundary: A minimal Task 1.3.1 Django project and local PostgreSQL database are reported operational, but tenant middleware, workers, and domain models are not available. Tests described in the policy are acceptance cases, not executed evidence.
 
 **Completion decision:** Policy approved; task completion remains pending implementation of the focused tests in an available Django/PostgreSQL environment.
 **Reviewer / approver and date:** Project owner/technical-security owner approved the policy documentation on 2026-10-25; test evidence pending.

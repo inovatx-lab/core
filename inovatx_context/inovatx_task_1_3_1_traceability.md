@@ -3,7 +3,7 @@
 **Task ID and title:** 1.3.1 — Set up Django app skeleton and settings for local environment
 **Phase / activity:** Phase 1 / Activity 1.3
 **Owner:** Project owner
-**Status:** In progress
+**Status:** Complete — local project, migration setup, and runtime startup validated
 
 ## Outcome and sources
 
@@ -47,15 +47,16 @@
 - Use Django's built-in `User`; `UserProfile` remains a separate organization-membership model to be implemented under Task 1.3.2.
 - Configure PostgreSQL as the sole database backend. Do not use SQLite as a fallback or as evidence of RLS behavior.
 - Read required database and Django secret settings from environment variables. Do not commit secrets or add a dotenv dependency.
+- Use separate migration and runtime database identities per P1.3.1-D2. Runtime access to `django_migrations` is limited to `SELECT` for Django's startup history check.
 - Keep this task to a local project foundation; it does not authorize a full-stack or production deployment.
 
 ## Evidence and completion
 
 **Evidence:**
 - Check or artifact: Django skeleton, dependency/settings files, local setup instructions, and focused startup/configuration checks.
-- Result: Python 3.12 with Django 5.2.18 installed from the declared requirements. `manage.py check` passed; Python `compileall` passed; a settings runtime check confirmed the PostgreSQL backend and `auth.User`; missing `DJANGO_SECRET_KEY` fails explicitly. The WSGI application loaded and returned the expected `404 Not Found` for `/`, since this task defines no routes. `makemigrations --check --dry-run` reported no model changes but warned that migration-history consistency could not be checked because the PostgreSQL connection timed out. `runserver` could not complete its startup migration check for the same unavailable database.
+- Result: Python 3.12 with Django 5.2.18 installed from the declared requirements. `manage.py check` passed under both default and migration settings; all three focused database-settings unit tests passed; Python compilation and `git diff --check` passed. WSGI smoke checks passed: with `DEBUG=false`, `/` returns 404; with `DEBUG=true`, Django displays its development install page because the URL map is intentionally empty. The project owner reports PostgreSQL 18.6 listening on localhost, the approved owner/migrator/runtime roles and database privileges configured, migrations completed using the migration settings, and the development server started with runtime credentials. The supplied browser screenshot shows the expected Django development install page at `127.0.0.1:8000`. The migration console output and database privilege state were not independently captured by this review; no passwords or credential values were recorded.
 - Location: `README.md`, `requirements.txt`, `manage.py`, `config/`, `core/`, and the validation output for this task.
-- Validation boundary: No migrations were applied and no successful development-server boot was observed. No PostgreSQL-backed migration check is claimed; the database and actual-schema validation remain pending.
+- Validation boundary: PostgreSQL role/database setup, successful migration execution, and runtime-credential server startup are owner-reported; the screenshot corroborates the local server response but does not independently establish database grants. This task does not implement domain models/admin, tenant tables, RLS, or production deployment.
 
-**Completion decision:** The WSGI application boot and non-database checks are evidenced, but Task 1.3.1 remains in progress until the Django development server and PostgreSQL-backed migration setup can be validated.
-**Reviewer / approver and date:** Project-owner implementation choices confirmed 2026-10-26; task completion review pending.
+**Completion decision:** Complete. All Task 1.3.1 deliverables are implemented and the PostgreSQL migration/server validation has been reported successful by the project owner. Later domain, tenant-isolation, and deployment work remains outside this task.
+**Reviewer / approver and date:** Project owner supplied the migration and runtime-server validation on 2026-10-26; implementation scope and evidence reviewed on 2026-10-26.

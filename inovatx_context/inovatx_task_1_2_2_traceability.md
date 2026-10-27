@@ -40,6 +40,7 @@
 
 - **Role separation:** Use separate logical authorities for controlled database setup, a `NOLOGIN` schema/object owner, a controlled migration identity that may activate the owner role for migrations, and one shared Django/Celery runtime identity. Neither owner nor migrator credentials are configured in runtime services; the runtime identity cannot become the owner. Exact role identifiers and secret-delivery workflow are implementation/deployment details.
 - **Runtime privileges:** Grant the runtime identity `SELECT`, `INSERT`, `UPDATE`, and `DELETE` only on the four approved Core tenant tables. Exclude ownership, DDL, role management, `TRUNCATE`, `REFERENCES`, `TRIGGER`, replication, superuser, and `BYPASSRLS`. The external Django authentication table is not included; its narrow grants depend on the approved `AUTH_USER_MODEL`.
+- **Django startup metadata exception:** Task 1.3.1 separately approves runtime `SELECT` on `django_migrations`, plus database `CONNECT` and schema `USAGE`, only for Django's startup migration-history check. This infrastructure grant does not expand the tenant-table grant set or authorize auth/session table access.
 - **RLS coverage:** Enable and FORCE RLS on `Organization`, `UserProfile`, `OrganizationMembershipRole`, and `SubscriptionLicense`. Scope `Organization` by its `id`; scope `UserProfile` and `SubscriptionLicense` by `organization_id`; scope role assignments through the parent `UserProfile` membership without adding a redundant tenant column.
 - **RLS-compatible membership validation:** Set the syntactically valid selected organization as candidate transaction-local context, then perform only the matching authenticated-user/organization membership lookup under RLS. Do not query tenant business data until membership validation succeeds.
 - **Policy form:** Runtime-targeted policies use both `USING` and `WITH CHECK`. Missing tenant context produces no matching rows and rejects writes; malformed context errors rather than falling back to an unscoped query.
@@ -56,16 +57,16 @@
 **Implementation blockers:**
 - The Task 1.3.1 Django project and built-in `auth.User` configuration now exist, but Core domain models and tenant tables have not yet been created.
 - Task 1.1.3's remaining physical schema prerequisites belong to the authorized Django model work in Task 1.3.2.
-- No PostgreSQL server is available locally, and no PostgreSQL client or Docker runtime is installed; no RLS test can be executed against the actual schema here.
+- PostgreSQL 18.6 and the local database/role baseline are now reported as provisioned under Task 1.3.1. The Django migrations, actual Core schema, RLS policies, and tenant-table grants do not yet exist; no RLS test can be executed against the actual schema.
 - The owner approved proceeding to Task 1.3.1 and the model prerequisites for Task 1.3.2 before returning to implement this task. No fixture-only test will be represented as validation of the actual Django schema.
 
 ## Evidence and completion
 
 **Evidence:**
 - Check or artifact: Approved design choices and repository/environment inspection.
-- Result: Design decisions recorded; implementation blocked. A minimal Django 5.2 project exists, but there are no Core tenant models/tables and the local PostgreSQL connection is unavailable. The required actual-schema integration tests have not been run.
+- Result: Design decisions recorded; implementation blocked. A minimal Django 5.2 project exists and a local PostgreSQL role baseline is reported provisioned, but there are no Core tenant models/tables or RLS policies. The required actual-schema integration tests have not been run.
 - Location: this record; `inovatx_phase0_decision_log.md`; `inovatx_tenant_context_specification.md`; `inovatx_phase0_exit_review.md`.
-- Validation boundary: No RLS SQL, migrations, database roles/grants, or tests have been implemented or executed.
+- Validation boundary: No RLS SQL, tenant-table grants, migrations, or tests have been implemented or executed. Local Task 1.3.1 database roles and baseline database/schema privileges do not count as evidence for RLS implementation.
 
 **Completion decision:** Not complete. Resume implementation after the Django schema and a PostgreSQL test environment are available; close only after the actual-schema suite passes under the runtime identity.
 **Reviewer / approver and date:** Design approval by project owner/technical-security owner, 2026-10-25; implementation review pending.

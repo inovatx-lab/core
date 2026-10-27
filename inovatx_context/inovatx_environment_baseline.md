@@ -8,8 +8,8 @@
 
 | Component | Documented target | Planned role | Status / qualification |
 |---|---|---|---|
-| Django Core | Django 5.x, Python 3.12+ | Core application, identity, billing, tenant-aware APIs | Task 1.3.1 adds a local Django 5.2 project skeleton and environment-driven PostgreSQL settings. Domain models/admin, container image, PostgreSQL-backed migration validation, and production settings remain pending. |
-| PostgreSQL | PostgreSQL 16+ | Core data with RLS and Moodle data | One PostgreSQL service with separate `inovatx_db` and `moodle_db` databases is the approved planning topology. Task 1.2.2 approved the Core role/RLS design; database provisioning, grants, and service credentials remain unimplemented. |
+| Django Core | Django 5.x, Python 3.12+ | Core application, identity, billing, tenant-aware APIs | Task 1.3.1 local Django 5.2 project, environment-driven PostgreSQL settings, separate migration/runtime identities, migration setup, and development-server startup are validated. Domain models/admin, container image, and production settings remain pending. |
+| PostgreSQL | PostgreSQL 16+ | Core data with RLS and Moodle data | One PostgreSQL service with separate `inovatx_db` and `moodle_db` databases is the approved planning topology. Local PostgreSQL 18.6 and the Task 1.3.1 owner/migrator/runtime baseline are reported configured and used for migration/server validation; production provisioning, tenant-table grants, and RLS remain unimplemented. |
 | Redis | Redis 7.x | Celery broker/cache and application caching as approved | Persistence, authentication, memory policy, and production configuration remain undefined. |
 | Moodle LMS | Moodle 4.x, PHP 8.2+ / Apache | Learning hub, quizzes, cohorts, and gradebook | Exact Moodle release, image/source, plugins, configuration, and database initialization are not selected. |
 | FastAPI AI | FastAPI, Python 3.12+, Pydantic v2 | Internal AI orchestration and SSE service | Application code, image, provider integration, runtime settings, and service authentication are not present. |
@@ -54,4 +54,4 @@ The root [Compose planning skeleton](../docker-compose.yml) records the intended
 
 ## Validation boundary
 
-The container/network plan remains planning-only. Task 1.3.1 validated Django settings and system checks locally, but no PostgreSQL service is available at `127.0.0.1:5432`; database-backed migrations, RLS, containers, images, service integration, performance targets, and production readiness are not validated by the local project bootstrap.
+The container/network plan remains planning-only. The project owner reports PostgreSQL 18.6 listening on localhost, the local Task 1.3.1 roles/schema privileges configured, migrations applied, and the runtime-credential development server started. These local checks do not validate tenant RLS, containers, images, service integration, performance targets, or production readiness.

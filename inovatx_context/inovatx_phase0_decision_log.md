@@ -593,3 +593,13 @@ The approved answers below record the adopted decisions. This register reflects 
 **Rationale:** This establishes the smallest local Django foundation within the approved Phase 1 scope, matches the PRD's Python/Django/PostgreSQL stack, and freezes the authentication model before the first Core membership migration.
 
 **Impact:** Task 1.3.2 models must reference the configured user via `settings.AUTH_USER_MODEL`. This decision does not authorize domain-model/admin work under Task 1.3.1, create a database service, implement RLS, or configure production deployment. PostgreSQL-dependent migration behavior must be validated against PostgreSQL; SQLite or a static configuration check is not a substitute.
+
+### P1.3.1-D2: Local PostgreSQL migration and runtime identities
+
+**Decision:** Use the local roles `inovatx_owner` (`NOLOGIN`), `inovatx_migrator` (login permitted to assume the owner role for migrations), and `inovatx_runtime` (separate login that cannot assume either elevated role). The migration-only Django settings must connect as the migrator and request the owner role through a validated PostgreSQL startup option. Default Django settings must use runtime credentials only. The runtime role receives database `CONNECT`, schema `USAGE`, and `SELECT` on `django_migrations` solely so Django can perform its startup migration-history check.
+
+**Rationale:** Separate schema ownership and migration privileges from the application runtime identity while allowing Django's normal startup check to run without giving runtime credentials DDL or ownership authority.
+
+**Impact:** The `django_migrations` grant is a narrow infrastructure exception; it does not authorize grants on Django auth/session tables or future tenant tables. Task 1.2.2's approved tenant-table grants and RLS work remain unchanged. These commands document local development setup and do not authorize production provisioning or deployment.
+
+**Approver:** Project owner, confirmed 2026-10-26 during Task 1.3.1 implementation planning.

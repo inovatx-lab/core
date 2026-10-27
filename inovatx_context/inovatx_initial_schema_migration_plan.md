@@ -10,7 +10,7 @@
 
 This document records the target relational schema for the initial Django Core domain and the order in which its schema changes should be applied once the Django application exists. It does not create executable migrations or claim that any database or schema currently exists.
 
-The approved target is PostgreSQL. Its logical tenant database is `inovatx_db`; this plan does not create databases, configure credentials, establish application roles or grants, or apply Row-Level Security (RLS). The Phase 0 exit review initially left database bootstrap/application roles and RLS role/policy design unresolved. Task 1.2.2 subsequently approved that design; its executable implementation remains assigned to Task 1.2.2 and depends on the actual Django schema and a PostgreSQL test environment.
+The approved target is PostgreSQL. Its logical tenant database is `inovatx_db`; this plan does not create databases, configure credentials, establish application roles or grants, or apply Row-Level Security (RLS). Task 1.3.1 records the local owner/migrator/runtime role baseline and its narrow Django startup metadata grant; those local setup steps do not implement this plan's tenant-table grants or RLS. Task 1.2.2 approved the RLS role/policy design; executable implementation remains assigned to Task 1.2.2 and depends on the actual Django schema and a PostgreSQL test environment.
 
 The roadmap lists “migration files and schema checks” as evidence. For this task, the project owner confirmed a documentation-only deliverable: executable Django migration files and schema checks are deferred until the authorized Django skeleton/model tasks establish a runnable application and database environment.
 
@@ -91,7 +91,7 @@ These do not change the approved logical domain model, but must be resolved befo
 3. `valid_until` nullability and timestamp timezone convention.
 4. Exact string-field lengths and any name normalization/length requirements.
 5. Foreign-key deletion behavior and any additional indexes based on the approved query patterns.
-6. PostgreSQL bootstrap, application database roles, and grants; do not assume privileges or owner role.
+6. Production PostgreSQL bootstrap and service credentials; do not assume privileges or owner role. Task 1.3.1 records the local development role baseline, while production provisioning remains out of scope.
 7. RLS role/policy design, approved and recorded under Task 1.2.2 decisions; executable policy implementation awaits the Django schema and PostgreSQL test environment.
 8. Whether AI_PRO allowance values are stored as explicit per-license values or supplied by a later approved plan/default mechanism; the schema invariant is that both values are present and positive only for AI_PRO.
 

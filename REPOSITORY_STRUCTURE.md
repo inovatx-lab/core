@@ -15,6 +15,8 @@ INOVEXA/
 ├── config/                       # Django project settings and entry points
 │   ├── __init__.py
 │   ├── asgi.py
+│   ├── base_settings.py
+│   ├── migration_settings.py
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py
@@ -62,7 +64,7 @@ INOVEXA/
         └── Phase 0 Decision Log.docx
 ```
 
-The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack. The Django settings require PostgreSQL environment values and do not fall back to SQLite; a local PostgreSQL-backed migration check remains pending.
+The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack. Django's default settings use only runtime credentials; `config.migration_settings` is reserved for migrations and activates the validated schema-owner role. Neither settings module falls back to SQLite. PostgreSQL-backed migration and runtime startup checks remain pending.
 
 ## Git and branches
 

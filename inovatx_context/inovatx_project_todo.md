@@ -187,14 +187,14 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Task 1.2.3: Define fail-closed behavior for missing tenant context.
   - Deliverable: tenant failure policy
   - Evidence: documented request/worker failure rules and passing focused verification tests.
-  - Status: In progress; policy and test matrix approved. Test execution is blocked until the Django application and PostgreSQL test environment are available.
+  - Status: In progress; policy and test matrix approved. The local Django/PostgreSQL foundations now exist, but the tenant request/worker behavior and actual tenant schema required by the policy tests have not been implemented.
   - Evidence location: `inovatx_context/inovatx_tenant_failure_policy.md` and `inovatx_context/inovatx_task_1_2_3_traceability.md`.
 
 ### Activity 1.3: Establish Django application foundation
 - Task 1.3.1: Set up Django app skeleton and settings for local environment.
   - Deliverable: project bootstrap
   - Evidence: local Django project/settings, successful system and syntax checks, and PostgreSQL-backed migration setup validation.
-  - Status: In progress; Django 5.2 project skeleton and PostgreSQL-only environment settings created. Local system checks pass; PostgreSQL-backed migration/app-server startup validation remains blocked because no local PostgreSQL service is available.
+  - Status: Complete; Django 5.2 project skeleton, PostgreSQL-only settings, and separate local migration/runtime identities are implemented. Local Django checks and focused settings tests pass; the project owner reports successful PostgreSQL migrations and runtime-credential server startup, corroborated by the local browser response recorded in the traceability evidence.
   - Evidence location: `README.md`, `requirements.txt`, `config/`, `core/`, and `inovatx_context/inovatx_task_1_3_1_traceability.md`.
 - Task 1.3.2: Build minimal Django admin and ORM models.
   - Deliverable: working model layer with admin access
