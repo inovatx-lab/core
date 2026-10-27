@@ -199,6 +199,8 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Task 1.3.2: Build minimal Django admin and ORM models.
   - Deliverable: working model layer with admin access
   - Evidence: model tests and admin smoke checks
+  - Status: Complete; Django Core models (Organization, UserProfile, OrganizationMembershipRole, SubscriptionLicense) with UUID PKs, CHECK constraints, unique constraints, FK protections, and UTC timestamps are implemented. Migration `core/migrations/0001_initial.py` generated and applied against PostgreSQL 18. All 13 focused tests pass against isolated test database `inovatx_test_db`. Admin registration with list/search/filter for all four models verified.
+  - Evidence location: `core/`, `config/`, `README.md`, and `inovatx_context/inovatx_task_1_3_2_traceability.md`.
 - Task 1.3.3: Create initial API contract for Core endpoints.
   - Deliverable: Core API contract document
   - Evidence: endpoint schema and request/response mapping
