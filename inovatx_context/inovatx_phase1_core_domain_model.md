@@ -2,7 +2,7 @@
 
 **Roadmap task:** 1.1.1 — Finalize `Organization`, `UserProfile`, and `SubscriptionLicense` structure
 **Phase / activity:** Phase 1 / Activity 1.1
-**Status:** Approved by project owner on 2026-10-25
+**Status:** Approved by project owner on 2026-10-25; physical model details amended for Task 1.3.2 on 2026-10-27
 **Traceability:** [Task 1.1.1 traceability record](inovatx_task_1_1_1_traceability.md)
 **Sources:** PRD §3.1, FR-01, FR-05, FR-06, §7; UML §§5–6; approved Phase 0 decisions D3 and D17
 
@@ -32,10 +32,11 @@ These decisions are recorded in the Task 1.1.1 section of the project decision l
 | Field | Type / meaning | Nullability | Notes |
 |---|---|---|---|
 | `id` | UUID primary key | Required | Matches PRD §3.1. |
-| `name` | Variable-length string | Required | Organization display/name value. The PRD does not define a maximum length or normalization rule; none is inferred by the Task 1.1.2 enum taxonomy. |
+| `name` | Variable-length string, max 255 characters | Required | Organization display/name value. No normalization rule is defined. |
 | `org_type` | Organization-type enum | Required | Allowed values and logical validation are specified in the Task 1.1.2 taxonomy. |
 | `status` | Organization lifecycle enum | Required | Allowed values are specified in the Task 1.1.2 taxonomy; transitions remain out of scope. |
-| `created_at` | Timestamp | Required | Matches PRD §3.1. Time-zone/storage convention belongs to schema design. |
+| `created_at` | UTC-aware timestamp | Required | Automatically set when created. |
+| `updated_at` | UTC-aware timestamp | Required | Owner-approved Task 1.3.2 addition; automatically refreshed when saved. |
 
 ### UserProfile (organization membership)
 
@@ -46,8 +47,9 @@ These decisions are recorded in the Task 1.1.1 section of the project decision l
 | `id` | UUID primary key | Required | Matches PRD §3.1. |
 | `user_id` | Foreign key to Django `auth_user.id` | Required | The PRD/UML depicts an integer authentication-user key. Login credentials and global identity fields remain on the auth user. |
 | `organization_id` | Foreign key to `Organization.id` | Required | Establishes the membership's tenant. |
-| `phone_number` | Variable-length string | Not specified by PRD | PRD names the field but does not define whether it is optional, normalized, or unique; do not enforce those rules in this task. |
-| `created_at` | Timestamp | Required | Matches PRD §3.1. |
+| `phone_number` | Variable-length string, max 32 characters | Required | Owner-approved Task 1.3.2 decision. Store the supplied value without normalization or uniqueness enforcement. |
+| `created_at` | UTC-aware timestamp | Required | Automatically set when created. |
+| `updated_at` | UTC-aware timestamp | Required | Owner-approved Task 1.3.2 addition; automatically refreshed when saved. |
 
 #### OrganizationMembershipRole association
 
@@ -58,6 +60,8 @@ An explicit association is needed because one membership may have multiple roles
 | `id` | UUID primary key | Required | Task 1.1.3 uses a surrogate UUID key. |
 | `user_profile_id` | Foreign key to `UserProfile.id` | Required | Scopes each role assignment to one organization membership. |
 | `role_code` | Role enum/code | Required | Allowed values are specified in the Task 1.1.2 taxonomy; permission semantics belong to the later RBAC task. `system_admin` is global and is not an organization-membership role. |
+| `created_at` | UTC-aware timestamp | Required | Owner-approved Task 1.3.2 addition; automatically set when created. |
+| `updated_at` | UTC-aware timestamp | Required | Owner-approved Task 1.3.2 addition; automatically refreshed when saved. |
 
 Logical uniqueness: one assignment per `(user_profile_id, role_code)`, enforced by a unique constraint in the schema.
 
@@ -72,10 +76,12 @@ Logical uniqueness: one assignment per `(user_profile_id, role_code)`, enforced 
 | `product_code` | Product enum/code | Required | Allowed values and first-client scope are specified in the Task 1.1.2 taxonomy. |
 | `seat_capacity` | Integer seat entitlement | Required | Must be at least 1; its licensed unit is product-specific. |
 | `status` | License lifecycle enum | Required | Allowed values are specified in the Task 1.1.2 taxonomy; transitions remain for Task 2.2.1. |
-| `moodle_cohort_id` | External Moodle cohort identifier | Nullable | PRD marks this field nullable. It is an external reference, not a Core tenant key. Whether one license maps to multiple cohorts remains outside this task. |
+| `moodle_cohort_id` | External Moodle cohort identifier, max 255 characters | Nullable | It is an opaque external reference, not a Core tenant key. Whether one license maps to multiple cohorts remains outside this task. |
 | `ai_monthly_interaction_allowance_per_learner_seat` | Integer configured monthly interaction entitlement | Required for `AI_PRO` | Learner-seat baseline D17 sets 1,000 interactions per month. |
 | `ai_daily_interaction_cap_per_learner_seat` | Integer configured daily interaction cap | Required for `AI_PRO` | D17 sets 50 interactions per learner seat per day. |
-| `valid_until` | Timestamp for entitlement validity boundary | Nullability not specified by PRD | Must not be used as a substitute for the license lifecycle/status (FR-06). Renewal and expiry behavior belong to Task 2.2.1. |
+| `valid_until` | Nullable UTC-aware timestamp for entitlement validity boundary | Nullable | Owner-approved Task 1.3.2 decision. Must not be used as a substitute for the license lifecycle/status (FR-06). Renewal and expiry behavior belong to Task 2.2.1. |
+| `created_at` | UTC-aware timestamp | Required | Owner-approved Task 1.3.2 addition; automatically set when created. |
+| `updated_at` | UTC-aware timestamp | Required | Owner-approved Task 1.3.2 addition; automatically refreshed when saved. |
 
 Do not carry the PRD ERD's `ai_tokens_used_current_month` field into the license. D3 requires reserving and reconciling provider tokens, while D17 defines customer-facing interaction allowances. Usage and token accounting must be represented in the later usage-ledger model, not as a mutable counter on this entitlement record.
 
@@ -102,6 +108,6 @@ Do not carry the PRD ERD's `ai_tokens_used_current_month` field into the license
 
 ## 6. Review status
 
-**Status:** Approved by the project owner on 2026-10-25.
-**Acceptance evidence:** Field definitions, membership/license cardinalities, task boundaries, and cross-task dependencies were reviewed and approved. The UML and decision log reflect the approved membership/license cardinalities. `git diff --check` passed; no application code or migrations are in scope for this task.
-**Completion decision:** Task 1.1.1 complete.
+**Status:** Logical model approved by the project owner on 2026-10-25; physical details above were clarified for Task 1.3.2 on 2026-10-27.
+**Acceptance evidence:** Field definitions, membership/license cardinalities, task boundaries, and cross-task dependencies were reviewed and approved. The UML and decision log reflect the approved membership/license cardinalities. Task 1.3.2 physical decisions are recorded in the decision log and corresponding schema plan.
+**Completion decision:** Task 1.1.1 logical-model deliverable remains complete; Task 1.3.2 implements the approved physical model.

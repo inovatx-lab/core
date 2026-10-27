@@ -603,3 +603,49 @@ The approved answers below record the adopted decisions. This register reflects 
 **Impact:** The `django_migrations` grant is a narrow infrastructure exception; it does not authorize grants on Django auth/session tables or future tenant tables. Task 1.2.2's approved tenant-table grants and RLS work remain unchanged. These commands document local development setup and do not authorize production provisioning or deployment.
 
 **Approver:** Project owner, confirmed 2026-10-26 during Task 1.3.1 implementation planning.
+
+## Phase 1 Task 1.3.2 Decisions — Core Models and Admin
+
+**Decision date:** 2026-10-27
+**Status:** Project-owner choices confirmed; implementation and PostgreSQL validation in progress
+**Approver:** Project owner, confirmed during Task 1.3.2 planning
+
+### P1.3.2-D1: Physical field nullability and lengths
+
+**Decision:** `UserProfile.phone_number` is required with max length 32 and has no normalization or uniqueness rule. `SubscriptionLicense.valid_until` is nullable. `Organization.name` has max length 255; nullable `moodle_cohort_id` has max length 255; each enum/code field is sized to the longest approved code in its set.
+
+**Rationale:** These details were explicitly unresolved in the approved logical model and migration plan; recording owner choices avoids inferring physical schema behavior.
+
+**Impact:** Phone values are stored as supplied. No expiry workflow or extra name/cohort validation is implied.
+
+### P1.3.2-D2: Foreign-key deletion behavior and indexes
+
+**Decision:** Protect referenced Django auth users and organizations from deletion. Deleting a `UserProfile` cascades only to its `OrganizationMembershipRole` rows. Do not add non-unique indexes beyond Django's foreign-key indexes and indexes inherent in the approved uniqueness constraints.
+
+**Rationale:** Avoid implicit deletion of identity, tenant, and entitlement records without an approved deletion/retention workflow; role assignment rows have no independent meaning after their membership is explicitly deleted. Avoid speculative indexes without approved query patterns.
+
+**Impact:** This selects database referential behavior only; it does not define an application deletion workflow or alter runtime privileges.
+
+### P1.3.2-D3: UTC timestamps
+
+**Decision:** Add UTC-aware `created_at` (`auto_now_add=True`) and `updated_at` (`auto_now=True`) timestamps to each of the four custom Core models. Do not modify Django built-in tables.
+
+**Rationale:** Consistent creation and modification times are required on project-owned records while preserving the framework-managed schema.
+
+**Impact:** `updated_at` is an owner-approved addition to the Task 1.1.1 logical field baseline. Django's built-in auth/content-type/session/migration tables remain unchanged.
+
+### P1.3.2-D4: AI allowance persistence and model defaults
+
+**Decision:** Store explicit per-license AI allowance values for `AI_PRO`; require both values and enforce that they are positive. Keep both values null for other products. Do not silently default business fields, including organization/product/status codes, seat capacity, or AI allowances. UUIDs and timestamps may be generated automatically.
+
+**Rationale:** The D17 values (1,000 monthly and 50 daily per learner seat) are the approved baseline, but implicit model defaults could silently grant or change entitlements. Explicit values keep each entitlement visible.
+
+**Impact:** This does not define AI usage accounting, pooling, reset behavior, or license lifecycle transitions.
+
+### P1.3.2-D5: Minimal admin and test boundary
+
+**Decision:** Register the four Core models with basic Django admin CRUD pages, concise list columns, searches, and filters. Do not add custom bulk actions, a role-permission matrix, or onboarding workflows. Run model/admin database smoke tests using a separate disposable PostgreSQL test database under migration/owner settings. Do not expand runtime grants to auth or tenant tables or claim runtime-admin authorization from elevated-role tests.
+
+**Rationale:** Validate the assigned model/admin deliverable without crossing the existing least-privilege boundary or risking the development database with destructive test setup.
+
+**Impact:** Runtime table grants and RLS remain assigned to Task 1.2.2; domain role permissions remain assigned to their RBAC task. A separate disposable test database must be provisioned by the local setup authority before PostgreSQL-backed tests run.
