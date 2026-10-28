@@ -57,7 +57,7 @@ Task 1.1.2 records the allowed organization and license status values; lifecycle
 - Evaluate each phase completion item at that phase's exit. Do not mark a phase complete before its evidence and approval exist.
 - [x] Phase 0 is complete: repo baseline, source-of-truth docs, project guardrails, AI-grounding rules, and exit criteria are signed off. Exit approved 2026-10-25; see `inovatx_phase0_exit_review.md`. Host-side branch protection verification remains a bounded follow-up due before merging to `develop` or `main`.
 - [x] Phase 1 is complete: model layer, migration baseline, tenant isolation design baseline, and Django foundation are documented and validated. Exit approved 2026-10-28; see `inovatx_phase1_exit_review.md`. Task 1.2.2 RLS implementation remains blocked on Django schema and PostgreSQL test environment and must be completed with passing tenant-isolation tests before Phase 2 work begins.
-- [ ] Phase 2 is complete: RBAC, onboarding, and subscription activation paths are validated.
+- [ ] Phase 2 is complete: RBAC matrix (Task 2.1.1) documented; onboarding, subscription activation, and tenant access logic remain in progress. Exit pending Phase 2 completion.
 - [ ] Phase 3 is complete: Moodle provisioning and SSO are validated.
 - [ ] Phase 4 is complete: AI orchestration, fair-use logic, and streaming are validated.
 - [ ] Phase 5 is complete: end-to-end payment + LMS + AI path is validated and readiness is signed off.
