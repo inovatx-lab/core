@@ -33,7 +33,7 @@ For a tenant-scoped request, the application must:
 6. Apply the authorization rule for the requested resource and action. Membership selection alone is not permission.
 7. Only after membership and applicable authorization succeed may the request access tenant business data. Keep that work within the transaction where context was established. Transaction completion clears the `SET LOCAL` value; request teardown must also leave the borrowed connection in a clean state.
 
-The request selector's transport (for example, route, header, or session selection) is intentionally deferred until the Core API contract is defined in Task 1.3.3. Whichever transport is selected, it must identify one organization and pass through the same authenticated membership validation; no transport value is trusted as authorization.
+The request selector's transport is defined in the [Core API contract](inovatx_core_api_contract.md) as the `X-INOVATX-Organization-Id` HTTP header. Whichever transport is selected, it must identify one organization and pass through the same authenticated membership validation; no transport value is trusted as authorization.
 
 The PRD does not define a membership status field. This task therefore requires a matching membership record and applicable approved authorization checks, but does not invent additional membership lifecycle rules.
 

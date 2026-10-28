@@ -33,6 +33,7 @@ INOVEXA/
 ├── .gitignore
 └── inovatx_context/
     ├── inovatx_completion_checklist.md
+    ├── inovatx_core_api_contract.md     # Task 1.3.3 Core API contract document
     ├── inovatx_core_enum_taxonomy.md
     ├── inovatx_initial_schema_migration_plan.md
     ├── inovatx_phase0_exit_review.md
@@ -64,7 +65,7 @@ INOVEXA/
         └── Phase 0 Decision Log.docx
 ```
 
-The Markdown files in `inovatx_context/` are the working project context. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack. Django's default settings use only runtime credentials; `config.migration_settings` is reserved for migrations and activates the validated schema-owner role. Neither settings module falls back to SQLite. PostgreSQL-backed migration and runtime startup checks remain pending.
+The Markdown files in `inovatx_context/` are the working project context, including the Phase 1 Task 1.3.3 Core API contract document. The Word and PowerPoint files are supplied reference artifacts; confirm their contents against the Markdown sources before treating them as authoritative. The root Compose file is a planning artifact under Task 0.2.2, not a runnable stack. Django's default settings use only runtime credentials; `config.migration_settings` is reserved for migrations and activates the validated schema-owner role. Neither settings module falls back to SQLite. PostgreSQL-backed migration and runtime startup checks remain pending.
 
 ## Git and branches
 

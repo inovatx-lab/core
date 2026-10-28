@@ -204,6 +204,8 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Task 1.3.3: Create initial API contract for Core endpoints.
   - Deliverable: Core API contract document
   - Evidence: endpoint schema and request/response mapping
+  - Status: Complete; Core API contract documented with endpoint schemas for Organization, UserProfile, OrganizationMembershipRole, and SubscriptionLicense; authentication and tenant context selection flow per P1.2.1-D1 and P1.2.3-D1; error handling per P1.2.3-D1 (401, 400, 404, 403, 500 with correlation IDs); approved privilege boundary preserved (no RLS, no tenant middleware, no runtime implementation, no production deployment). No routes, views, serializers, or middleware created.
+  - Evidence location: `inovatx_context/inovatx_core_api_contract.md` and `inovatx_context/inovatx_task_1_3_3_traceability.md`.
 
 ### Phase 1 Exit Criteria
 - Core platform can boot locally.

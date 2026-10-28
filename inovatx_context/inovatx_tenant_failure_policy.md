@@ -10,7 +10,7 @@
 
 This policy defines how requests and workers fail when tenant context is absent, malformed, unauthorized, or inconsistent. It prohibits default-tenant behavior, unscoped fallback, and disclosure of another organization's existence.
 
-This is a behavior specification and future test matrix, not middleware, worker, API, or RLS implementation. The exact selector transport and response schema belong to Task 1.3.3. The Task 1.3.1 Django project and local PostgreSQL environment are now reported operational, but tenant middleware, workers, and domain models remain unimplemented; the cases below are acceptance criteria, not tests claimed to have run.
+This is a behavior specification and future test matrix, not middleware, worker, API, or RLS implementation. The exact selector transport and response schema are defined in the [Core API contract](inovatx_core_api_contract.md). The Task 1.3.1 Django project and local PostgreSQL environment are now reported operational, but tenant middleware, workers, and domain models remain unimplemented; the cases below are acceptance criteria, not tests claimed to have run.
 
 ## 2. Request decision policy
 
@@ -73,7 +73,7 @@ RLS policy behavior and runtime-role privilege checks are also covered by Task 1
 ## 7. Dependencies and remaining boundaries
 
 - Task 1.2.2 owns the approved PostgreSQL RLS and role baseline; it remains blocked until the Django schema and PostgreSQL test environment exist.
-- The route/header/session selector carrier and exact API error envelope are deferred to Task 1.3.3.
+- The route/header/session selector carrier and exact API error envelope are defined in the [Core API contract](inovatx_core_api_contract.md).
 - The resource/action permission matrix remains outside this task. This policy does not grant permissions to any role.
 - The approved `SET LOCAL` custom-GUC mechanism is not an independent defense against arbitrary SQL under a compromised runtime credential; do not state otherwise.
 - Global CRM directory access remains a separate organization-authorized access decision; this policy creates no system-admin exception.
