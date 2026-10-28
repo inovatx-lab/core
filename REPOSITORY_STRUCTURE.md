@@ -35,6 +35,7 @@ INOVEXA/
     ├── inovatx_completion_checklist.md
     ├── inovatx_core_api_contract.md     # Task 1.3.3 Core API contract document
     ├── inovatx_core_enum_taxonomy.md
+    ├── inovatx_core_rbac_matrix.md     # Task 2.1.1 RBAC matrix document
     ├── inovatx_initial_schema_migration_plan.md
     ├── inovatx_phase0_exit_review.md
     ├── inovatx_phase1_core_domain_model.md
@@ -57,6 +58,9 @@ INOVEXA/
     ├── inovatx_task_1_2_2_traceability.md
     ├── inovatx_task_1_2_3_traceability.md
     ├── inovatx_task_1_3_1_traceability.md
+    ├── inovatx_task_1_3_2_traceability.md
+    ├── inovatx_task_1_3_3_traceability.md
+    ├── inovatx_task_2_1_1_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/

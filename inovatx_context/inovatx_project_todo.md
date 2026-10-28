@@ -225,6 +225,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.1.1: Define `system_admin` vs `org_admin` permissions.
   - Deliverable: RBAC matrix
   - Evidence: role-to-permission mapping signed off
+  - Status: Complete; RBAC matrix documented in `inovatx_context/inovatx_core_rbac_matrix.md` with global `system_admin` vs tenant-scoped org roles; permission boundaries per resource/action for Organization, UserProfile, OrganizationMembershipRole, and SubscriptionLicense; no runtime permission implementation created. Completion review pending.
+  - Evidence location: `inovatx_context/inovatx_core_rbac_matrix.md`, `inovatx_context/inovatx_task_2_1_1_traceability.md`.
 - Task 2.1.2: Define tenant-scoped membership rules for `instructor`, `student`, `parent`, and `sme_staff`.
   - Deliverable: org role policy
   - Evidence: permission matrix and boundary tests
