@@ -1,4 +1,5 @@
 import time
+import json
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -216,3 +217,467 @@ class CoreAdminTests(TestCase):
             with self.subTest(url_name=url_name):
                 response = self.client.get(reverse(url_name))
                 self.assertEqual(response.status_code, 200)
+
+
+class CoreAuthorizationTests(TestCase):
+    """Authorization tests for Task 2.1.3 — Django permission enforcement.
+
+    Tests the RBAC matrix from Task 2.1.1 and membership rules from Task 2.1.2:
+    - org_admin: view/create/update, no delete
+    - instructor/student/parent/sme_staff: view only
+    - system_admin (superuser): full CRUD
+    - Cross-organization access denied (403)
+    - Non-member gets uniform 404 (P1.2.3-D1)
+    - Error semantics: 401/400/404/403/500 (P1.2.3-D1)
+    """
+
+    ORG_ID_HEADER = "HTTP_X_INOVATX_ORGANIZATION_ID"
+    CORR_ID_HEADER = "HTTP_X_CORRELATION_ID"
+
+    def setUp(self):
+        self.User = get_user_model()
+
+        # Two organizations for cross-org tests
+        self.org_a = Organization.objects.create(
+            name="Org A",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+        self.org_b = Organization.objects.create(
+            name="Org B",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+
+        # Users with different roles in org_a
+        self.admin_user = self.User.objects.create_user(
+            username="org_admin_a", password="test-password"
+        )
+        self.instructor_user = self.User.objects.create_user(
+            username="instructor_a", password="test-password"
+        )
+        self.student_user = self.User.objects.create_user(
+            username="student_a", password="test-password"
+        )
+        self.parent_user = self.User.objects.create_user(
+            username="parent_a", password="test-password"
+        )
+        self.sme_staff_user = self.User.objects.create_user(
+            username="sme_staff_a", password="test-password"
+        )
+        self.system_admin_user = self.User.objects.create_superuser(
+            username="system_admin", email="admin@example.com", password="test-password"
+        )
+
+        # User in org_b (for cross-org tests)
+        self.org_b_user = self.User.objects.create_user(
+            username="org_b_user", password="test-password"
+        )
+
+        # User profiles in org_a
+        self.admin_profile = UserProfile.objects.create(
+            user=self.admin_user,
+            organization=self.org_a,
+            phone_number="+256700000001",
+        )
+        self.instructor_profile = UserProfile.objects.create(
+            user=self.instructor_user,
+            organization=self.org_a,
+            phone_number="+256700000002",
+        )
+        self.student_profile = UserProfile.objects.create(
+            user=self.student_user,
+            organization=self.org_a,
+            phone_number="+256700000003",
+        )
+        self.parent_profile = UserProfile.objects.create(
+            user=self.parent_user,
+            organization=self.org_a,
+            phone_number="+256700000004",
+        )
+        self.sme_staff_profile = UserProfile.objects.create(
+            user=self.sme_staff_user,
+            organization=self.org_a,
+            phone_number="+256700000005",
+        )
+        self.system_admin_profile = UserProfile.objects.create(
+            user=self.system_admin_user,
+            organization=self.org_a,
+            phone_number="+256700000006",
+        )
+        self.org_b_profile = UserProfile.objects.create(
+            user=self.org_b_user,
+            organization=self.org_b,
+            phone_number="+256700000007",
+        )
+
+        # Role assignments in org_a
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.admin_profile, role_code=MembershipRoleCode.ORG_ADMIN
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.instructor_profile,
+            role_code=MembershipRoleCode.INSTRUCTOR,
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.student_profile, role_code=MembershipRoleCode.STUDENT
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.parent_profile, role_code=MembershipRoleCode.PARENT
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.sme_staff_profile,
+            role_code=MembershipRoleCode.SME_STAFF,
+        )
+
+        # Subscription license in org_a
+        self.license = SubscriptionLicense.objects.create(
+            organization=self.org_a,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=10,
+            status=LicenseStatus.ACTIVE,
+        )
+
+    def _headers(self, org_id=None, correlation_id=None):
+        headers = {}
+        if org_id is not None:
+            headers[self.ORG_ID_HEADER] = str(org_id)
+        if correlation_id is not None:
+            headers[self.CORR_ID_HEADER] = str(correlation_id)
+        return headers
+
+    # ------------------------------------------------------------ 401 Unauthenticated
+
+    def test_unauthenticated_get_returns_401(self):
+        response = self.client.get(
+            reverse("organization-list"), **self._headers(org_id=self.org_a.id)
+        )
+        self.assertEqual(response.status_code, 401)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "unauthenticated")
+
+    # ------------------------------------------------------------ 400 Missing/Malformed Selector
+
+    def test_missing_organization_selector_returns_400(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse("organization-list"))
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "missing_organization_selector")
+
+    def test_malformed_organization_selector_returns_400(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id="not-a-uuid"),
+        )
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "invalid_organization_selector")
+
+    # ------------------------------------------------------------ 404 Non-Member
+
+    def test_non_member_gets_404_not_403(self):
+        """P1.2.3-D1: same 404 for absent org or no matching membership."""
+        self.client.force_login(self.org_b_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 404)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "membership_not_found")
+
+    def test_absent_organization_gets_404(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id="00000000-0000-0000-0000-000000000000"),
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # ------------------------------------------------------------ org_admin permissions
+
+    def test_org_admin_can_view_organization(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_org_admin_can_create_organization(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.post(
+            reverse("organization-create"),
+            data=json.dumps(
+                {
+                    "name": "New Org",
+                    "org_type": "school",
+                    "status": "pending",
+                }
+            ),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_org_admin_can_update_organization(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.put(
+            reverse("organization-update", args=[self.org_a.id]),
+            data=json.dumps({"name": "Updated Org A"}),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_org_admin_cannot_delete_organization(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.delete(
+            reverse("organization-delete", args=[self.org_a.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "permission_denied")
+
+    def test_org_admin_can_create_profile(self):
+        new_user = self.User.objects.create_user(
+            username="new_member", password="test-password"
+        )
+        self.client.force_login(self.admin_user)
+        response = self.client.post(
+            reverse("profile-create"),
+            data=json.dumps(
+                {
+                    "user": str(new_user.id),
+                    "phone_number": "+256700000099",
+                }
+            ),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_org_admin_can_update_profile(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.put(
+            reverse("profile-update", args=[self.student_profile.id]),
+            data=json.dumps({"phone_number": "+256700000003-updated"}),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    # ------------------------------------------------------------ view-only roles
+
+    def test_instructor_can_view_organization(self):
+        self.client.force_login(self.instructor_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_instructor_cannot_create_organization(self):
+        self.client.force_login(self.instructor_user)
+        response = self.client.post(
+            reverse("organization-create"),
+            data=json.dumps(
+                {
+                    "name": "Instructor Org",
+                    "org_type": "school",
+                    "status": "pending",
+                }
+            ),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "permission_denied")
+
+    def test_instructor_cannot_update_organization(self):
+        self.client.force_login(self.instructor_user)
+        response = self.client.put(
+            reverse("organization-update", args=[self.org_a.id]),
+            data=json.dumps({"name": "Hacked Name"}),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_instructor_cannot_delete_organization(self):
+        self.client.force_login(self.instructor_user)
+        response = self.client.delete(
+            reverse("organization-delete", args=[self.org_a.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_can_view_organization(self):
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_student_cannot_create_profile(self):
+        new_user = self.User.objects.create_user(
+            username="student_create_test", password="test-password"
+        )
+        self.client.force_login(self.student_user)
+        response = self.client.post(
+            reverse("profile-create"),
+            data=json.dumps(
+                {
+                    "user": str(new_user.id),
+                    "phone_number": "+256700000088",
+                }
+            ),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_parent_can_view_organization(self):
+        self.client.force_login(self.parent_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_parent_cannot_create_license(self):
+        self.client.force_login(self.parent_user)
+        response = self.client.post(
+            reverse("license-create"),
+            data=json.dumps(
+                {
+                    "product_code": "EDTECH_LMS",
+                    "seat_capacity": 5,
+                    "status": "pending",
+                }
+            ),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_sme_staff_can_view_organization(self):
+        self.client.force_login(self.sme_staff_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_sme_staff_cannot_update_profile(self):
+        self.client.force_login(self.sme_staff_user)
+        response = self.client.put(
+            reverse("profile-update", args=[self.student_profile.id]),
+            data=json.dumps({"phone_number": "+256700000003-hacked"}),
+            content_type="application/json",
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    # ------------------------------------------------------------ Cross-organization access
+
+    def test_cross_org_view_returns_403(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            reverse("organization-list"),
+            **self._headers(org_id=self.org_b.id),
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_cross_org_profile_access_returns_403(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            reverse("profile-retrieve", args=[self.org_b_profile.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "permission_denied")
+
+    def test_cross_org_role_access_returns_403(self):
+        self.client.force_login(self.admin_user)
+        org_b_role = OrganizationMembershipRole.objects.create(
+            user_profile=self.org_b_profile,
+            role_code=MembershipRoleCode.ORG_ADMIN,
+        )
+        response = self.client.get(
+            reverse("role-retrieve", args=[org_b_role.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_cross_org_license_access_returns_403(self):
+        org_b_license = SubscriptionLicense.objects.create(
+            organization=self.org_b,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=5,
+            status=LicenseStatus.ACTIVE,
+        )
+        self.client.force_login(self.admin_user)
+        response = self.client.get(
+            reverse("license-retrieve", args=[org_b_license.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    # ------------------------------------------------------------ system_admin (superuser)
+
+    def test_system_admin_can_delete_profile(self):
+        self.client.force_login(self.system_admin_user)
+        temp_user = self.User.objects.create_user(
+            username="temp_delete", password="test-password"
+        )
+        temp_profile = UserProfile.objects.create(
+            user=temp_user,
+            organization=self.org_a,
+            phone_number="+256700000050",
+        )
+        response = self.client.delete(
+            reverse("profile-delete", args=[temp_profile.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 204)
+
+    def test_system_admin_can_delete_role(self):
+        self.client.force_login(self.system_admin_user)
+        temp_user = self.User.objects.create_user(
+            username="temp_role_delete", password="test-password"
+        )
+        temp_profile = UserProfile.objects.create(
+            user=temp_user,
+            organization=self.org_a,
+            phone_number="+256700000051",
+        )
+        temp_role = OrganizationMembershipRole.objects.create(
+            user_profile=temp_profile,
+            role_code=MembershipRoleCode.STUDENT,
+        )
+        response = self.client.delete(
+            reverse("role-delete", args=[temp_role.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 204)
+
+    def test_system_admin_can_delete_license(self):
+        self.client.force_login(self.system_admin_user)
+        temp_license = SubscriptionLicense.objects.create(
+            organization=self.org_a,
+            product_code=SubscriptionProductCode.CRM_BASIC,
+            seat_capacity=1,
+            status=LicenseStatus.PENDING,
+        )
+        response = self.client.delete(
+            reverse("license-delete", args=[temp_license.id]),
+            **self._headers(org_id=self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 204)
