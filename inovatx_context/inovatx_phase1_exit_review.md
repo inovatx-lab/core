@@ -90,8 +90,12 @@ This review acknowledges the documented Task 1.2.2 blockers; these constraints a
 | IBRAHIM SSEMAKULA | Product owner | [x] Approve ☐ Conditional approve ☐ Reject | All deliverables documented and traceability maintained. | 2026-10-28 |
 | MEDARD REYNALDS NIWABIINE | Technical/security owner | [x] Approve ☐ Conditional approve ☐ Reject | Tenant isolation design approved; Task 1.2.2 implementation pending schema. | 2026-10-28 |
 
-**Phase 2 authorization:** Recorded separately; Phase 1 remains the scope boundary.
+## Phase 2 authorization
 
-**Note:** A Phase 2 task (Task 2.1) will implement the RBAC matrix referenced in the Phase 1 core domain model and Task 1.2.1 tenant context contract. Task 2.2.1 will implement license lifecycle transitions deferred from the Phase 1 domain model. Task 1.2.2 remains open until runtime-role isolation tests pass after the Django schema is available.
+**IBRAHIM SSEMAKULA, Project Owner / Executive Sponsor, authorizes Phase 2 — Django Multi-Tenancy, RBAC, and Subscription Foundations (roadmap Tasks 2.1.1–2.3.3) effective 2026-10-28. This allows only those Phase 2 deliverables. It does not authorize Phase 3+, production deployment, a runnable full-stack deployment, or launch. Any task that depends on an unresolved design decision must pause until that decision is approved.**
+
+**Authorization basis:** The project owner confirmed this exact authorization in the 2026-10-28 project review interaction. This recorded approval is separate from the earlier Phase 1 authorization for Tasks 1.1.1–1.3.3.
+
+**Phase 2 scope:** Tasks 2.1.1 (RBAC matrix), 2.1.2 (tenant-scoped membership rules), 2.2.1 (license state machine), 2.3.3 (onboarding flow). Design decisions referenced: P1.2.1-D1 (explicit organization selection), P1.2.3-D1 (error semantics), P1.1.2-D1 (enum taxonomy). Task 1.2.2 RLS design (approved but blocked on Django schema/PG test env) remains a prerequisite for Task 2.2.1 runtime implementation but does not block Phase 2 design/documentation work.
 
 The completion checklist records Phase 1 as unchecked; this review documents that the Phase 1 scope is met but that Task 1.2.2 (RLS implementation) remains blocked and must be completed with evidence before the checklist box can be checked.

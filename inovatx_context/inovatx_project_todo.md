@@ -213,7 +213,7 @@ Milestone 1.1: Base platform and data contracts are ready for tenant-aware appli
 - Tenant isolation tests pass.
 - No features beyond this phase are started.
 
-**Exit review:** [Phase 1 exit review record](inovatx_phase1_exit_review.md) — Phase 1 closed 2026-10-28; Task 1.2.2 RLS implementation remains blocked pending Django schema and PostgreSQL test environment; Phase 2 authorization pending separate approval.
+**Exit review:** [Phase 1 exit review record](inovatx_phase1_exit_review.md) — Phase 1 closed 2026-10-28; Task 1.2.2 RLS implementation remains blocked pending Django schema and PostgreSQL test environment; **Phase 2 authorized separately on 2026-10-28** (Tasks 2.1.1–2.3.3).
 
 ---
 
