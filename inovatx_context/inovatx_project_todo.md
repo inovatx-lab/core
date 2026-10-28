@@ -230,6 +230,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.1.2: Define tenant-scoped membership rules for `instructor`, `student`, `parent`, and `sme_staff`.
   - Deliverable: org role policy
   - Evidence: permission matrix and boundary tests
+  - Status: Complete; membership rules documented in `inovatx_context/inovatx_tenant_membership_rules.md` with view-only tenant-scoped permission boundaries for `instructor`, `student`, `parent`, `sme_staff` across Organization, UserProfile, OrganizationMembershipRole, SubscriptionLicense; multiple roles per membership allowed; cross-organization isolation; no runtime permission implementation created. Completion review pending.
+  - Evidence location: `inovatx_context/inovatx_tenant_membership_rules.md`, `inovatx_context/inovatx_task_2_1_2_traceability.md`.
 - Task 2.1.3: Implement Django permission enforcement for the first client flow.
   - Deliverable: working access checks in the first user journeys
   - Evidence: authorization tests
