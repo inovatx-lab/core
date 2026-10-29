@@ -656,3 +656,190 @@ def license_delete(request, license_id):
         {"data": None, "correlation_id": str(correlation_id)},
         status=204,
     )
+
+
+# ---------------------------------------------------------------- Payment webhook
+
+import hmac
+import hashlib
+
+from django.views.decorators.csrf import csrf_exempt
+
+from .models import (
+    Payment,
+    PaymentEvent,
+    PaymentStatus,
+    PaymentEventType,
+    PaymentGatewayCode,
+)
+
+
+def _verify_webhook_signature(payload: bytes, signature: str, secret: str) -> bool:
+    """Verify HMAC-SHA256 webhook signature."""
+    if not signature or not secret:
+        return False
+    try:
+        scheme, _, hex_digest = signature.partition("=")
+        if scheme.lower() not in ("hmac-sha256", "sha256"):
+            return False
+        expected = hmac.new(
+            secret.encode("utf-8"), payload, hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(expected, hex_digest)
+    except (ValueError, AttributeError):
+        return False
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def payment_webhook(request):
+    """Webhook endpoint for payment gateway receipts.
+
+    Receives payment event notifications from external payment gateways.
+    Validates signature, enforces idempotency, records Payment and
+    PaymentEvent, and activates/suspends SubscriptionLicense per the
+    license lifecycle policy (Task 2.2.1) and payment state model
+    (Task 2.2.2).
+
+    This endpoint is CSRF-exempt because it is called by external
+    gateways, not by authenticated users. Security is provided by
+    cryptographic signature verification.
+    """
+    correlation_id = _extract_correlation_id(request)
+
+    # Signature verification
+    signature = request.META.get("HTTP_X_INOVATX_SIGNATURE", "")
+    secret = __import__("os").environ.get("INOVATX_WEBHOOK_SECRET", "")
+    if not _verify_webhook_signature(request.body, signature, secret):
+        return _error_response(
+            401, "invalid_signature", "Webhook signature verification failed", correlation_id
+        )
+
+    # Parse JSON body
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return _error_response(400, "invalid_json", "Request body must be valid JSON", correlation_id)
+
+    # Validate required fields
+    required_fields = (
+        "event_id",
+        "event_type",
+        "organization_id",
+        "idempotency_key",
+    )
+    for field in required_fields:
+        if field not in body:
+            return _error_response(
+                400, "missing_field", f"Required field missing: {field}", correlation_id
+            )
+
+    event_id = body["event_id"]
+    event_type = body["event_type"]
+    organization_id = body["organization_id"]
+    license_id = body.get("license_id")
+    idempotency_key = body["idempotency_key"]
+
+    # Validate event type
+    try:
+        PaymentEventType(event_type)
+    except ValueError:
+        return _error_response(
+            400, "invalid_event_type", f"Unknown event type: {event_type}", correlation_id
+        )
+
+    # Idempotency: reject duplicate event_id
+    if PaymentEvent.objects.filter(event_id=event_id).exists():
+        return JsonResponse(
+            {
+                "data": {"status": "duplicate", "event_id": str(event_id)},
+                "correlation_id": str(correlation_id),
+            },
+            status=200,
+        )
+
+    # Validate organization exists
+    try:
+        organization = Organization.objects.get(pk=organization_id)
+    except Organization.DoesNotExist:
+        return _error_response(404, "organization_not_found", "Organization not found", correlation_id)
+
+    # Validate license if provided
+    license_record = None
+    if license_id is not None:
+        try:
+            license_record = SubscriptionLicense.objects.get(
+                pk=license_id, organization=organization
+            )
+        except SubscriptionLicense.DoesNotExist:
+            return _error_response(
+                404, "license_not_found", "License not found in this organization", correlation_id
+            )
+
+    # Determine payment status from event type
+    status_map = {
+        PaymentEventType.SUCCEEDED: PaymentStatus.SUCCEEDED,
+        PaymentEventType.FAILED: PaymentStatus.FAILED,
+        PaymentEventType.CANCELLED: PaymentStatus.CANCELLED,
+        PaymentEventType.INITIATED: PaymentStatus.PENDING,
+    }
+    payment_status = status_map.get(event_type, PaymentStatus.PENDING)
+
+    # Create or update Payment record (idempotent by idempotency_key)
+    payment, created = Payment.objects.get_or_create(
+        idempotency_key=idempotency_key,
+        defaults={
+            "organization": organization,
+            "license": license_record,
+            "amount": body.get("amount", 0),
+            "currency": body.get("currency", "USD"),
+            "gateway": body.get("gateway", PaymentGatewayCode.MOBILE_MONEY),
+            "gateway_reference": body.get("gateway_reference"),
+            "status": payment_status,
+        },
+    )
+
+    if not created:
+        # Payment already exists for this idempotency key; update status if needed
+        payment.status = payment_status
+        if license_record is not None:
+            payment.license = license_record
+        payment.save()
+
+    # Create PaymentEvent record
+    PaymentEvent.objects.create(
+        payment=payment,
+        event_type=event_type,
+        event_id=event_id,
+        payload=body,
+    )
+
+    # Activate or suspend license based on payment outcome
+    if event_type == PaymentEventType.SUCCEEDED and license_record is not None:
+        if license_record.status == LicenseStatus.PENDING:
+            try:
+                license_record.status = LicenseStatus.ACTIVE
+                license_record.full_clean()
+                license_record.save()
+            except ValidationError as exc:
+                return _error_response(
+                    400, "activation_failed", str(exc), correlation_id
+                )
+
+    if event_type == PaymentEventType.FAILED and license_record is not None:
+        if license_record.status == LicenseStatus.PENDING:
+            license_record.status = LicenseStatus.SUSPENDED
+            license_record.save()
+
+    return JsonResponse(
+        {
+            "data": {
+                "payment_id": str(payment.id),
+                "payment_status": payment.status,
+                "license_status": license_record.status if license_record else None,
+                "event_id": str(event_id),
+            },
+            "correlation_id": str(correlation_id),
+        },
+        status=200,
+    )

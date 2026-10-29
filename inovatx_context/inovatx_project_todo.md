@@ -252,6 +252,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.2.3: Implement minimal payment receipt and subscription activation logic.
   - Deliverable: receipt-to-license activation flow
   - Evidence: end-to-end local test with mock gateway
+  - Status: Complete; Payment and PaymentEvent Django models created with constraints; `POST /api/v1/payments/webhook/` endpoint implemented with HMAC-SHA256 signature verification and idempotency; `payment.succeeded` activates pending license (`pending` → `active`); `payment.failed` suspends pending license (`pending` → `suspended`); 8 end-to-end tests pass; all 49 tests pass. Completion review pending.
+  - Evidence location: `core/models.py`, `core/views.py` (payment_webhook), `config/urls.py`, `core/migrations/0002_payment_paymentevent_and_more.py`, `core/tests.py` (CorePaymentTests), `inovatx_context/inovatx_payment_activation_flow.md`, `inovatx_context/inovatx_task_2_2_3_traceability.md`.
 
 ### Activity 2.3: Build onboarding flow for first clients
 - Task 2.3.1: Implement individual registration path.

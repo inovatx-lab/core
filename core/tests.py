@@ -681,3 +681,251 @@ class CoreAuthorizationTests(TestCase):
             **self._headers(org_id=self.org_a.id),
         )
         self.assertEqual(response.status_code, 204)
+
+
+class CorePaymentTests(TestCase):
+    """End-to-end payment receipt and license activation tests for Task 2.2.3.
+
+    Tests the payment webhook flow:
+    - payment.succeeded webhook activates pending license (pending -> active)
+    - payment.failed webhook suspends pending license (pending -> suspended)
+    - Idempotency: duplicate event_id returns 200 without side effects
+    - Invalid signature returns 401
+    - Missing required fields return 400
+    - Unknown event type returns 400
+    """
+
+    ORG_ID_HEADER = "HTTP_X_INOVATX_ORGANIZATION_ID"
+    CORR_ID_HEADER = "HTTP_X_CORRELATION_ID"
+    SIG_HEADER = "HTTP_X_INOVATX_SIGNATURE"
+    WEBHOOK_SECRET = "test-webhook-secret"
+
+    def setUp(self):
+        import os
+
+        os.environ["INOVATX_WEBHOOK_SECRET"] = self.WEBHOOK_SECRET
+
+        self.User = get_user_model()
+
+        self.org = Organization.objects.create(
+            name="Test Org",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+
+        self.admin_user = self.User.objects.create_user(
+            username="org_admin", password="test-password"
+        )
+        self.admin_profile = UserProfile.objects.create(
+            user=self.admin_user,
+            organization=self.org,
+            phone_number="+256700000001",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.admin_profile, role_code=MembershipRoleCode.ORG_ADMIN
+        )
+
+        # Pending license awaiting payment activation
+        self.license = SubscriptionLicense.objects.create(
+            organization=self.org,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=10,
+            status=LicenseStatus.PENDING,
+        )
+
+    def _sign_payload(self, payload_bytes: bytes, secret: str | None = None) -> str:
+        """Generate HMAC-SHA256 signature for webhook payload."""
+        import hmac
+        import hashlib
+
+        signing_secret = secret or self.WEBHOOK_SECRET
+        return "hmac-sha256=" + hmac.new(
+            signing_secret.encode("utf-8"), payload_bytes, hashlib.sha256
+        ).hexdigest()
+
+    def _webhook_payload(
+        self,
+        event_type: str = "payment.succeeded",
+        event_id: str | None = None,
+        organization_id=None,
+        license_id=None,
+        idempotency_key: str | None = None,
+        extra: dict | None = None,
+    ) -> dict:
+        import uuid
+
+        payload = {
+            "event_id": str(event_id or uuid.uuid4()),
+            "event_type": event_type,
+            "organization_id": str(organization_id or self.org.id),
+            "license_id": str(license_id or self.license.id),
+            "idempotency_key": idempotency_key or str(uuid.uuid4()),
+            "amount": "50000.00",
+            "currency": "UGX",
+            "gateway": "mobile_money",
+        }
+        if extra:
+            payload.update(extra)
+        return payload
+
+    def _post_webhook(
+        self,
+        payload: dict,
+        secret: str | None = None,
+        correlation_id=None,
+    ):
+        import json
+
+        body = json.dumps(payload).encode("utf-8")
+        sig = self._sign_payload(body, secret=secret)
+        headers = {
+            self.SIG_HEADER: sig,
+            "CONTENT_TYPE": "application/json",
+        }
+        if correlation_id is not None:
+            headers[self.CORR_ID_HEADER] = str(correlation_id)
+        return self.client.post(
+            reverse("payment-webhook"),
+            data=body,
+            content_type="application/json",
+            **headers,
+        )
+
+    # ------------------------------------------------------------ Successful activation
+
+    def test_payment_succeeded_activates_license(self):
+        """payment.succeeded webhook transitions license pending -> active."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.succeeded",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        response = self._post_webhook(payload)
+        self.assertEqual(response.status_code, 200)
+        body = json.loads(response.content)
+        self.assertEqual(body["data"]["payment_status"], "succeeded")
+        self.assertEqual(body["data"]["license_status"], "active")
+
+        # Verify license status in database
+        self.license.refresh_from_db()
+        self.assertEqual(self.license.status, LicenseStatus.ACTIVE)
+
+        # Verify Payment and PaymentEvent records created
+        from .models import Payment, PaymentEvent
+
+        self.assertTrue(Payment.objects.filter(idempotency_key=payload["idempotency_key"]).exists())
+        self.assertTrue(
+            PaymentEvent.objects.filter(event_id=payload["event_id"]).exists()
+        )
+
+    def test_payment_succeeded_idempotent_duplicate(self):
+        """Duplicate event_id returns 200 without re-activating license."""
+        import uuid
+
+        idempotency_key = str(uuid.uuid4())
+        event_id = str(uuid.uuid4())
+
+        # First webhook
+        payload = self._webhook_payload(
+            event_type="payment.succeeded",
+            event_id=event_id,
+            idempotency_key=idempotency_key,
+        )
+        response1 = self._post_webhook(payload)
+        self.assertEqual(response1.status_code, 200)
+
+        # Second webhook with same event_id (duplicate)
+        response2 = self._post_webhook(payload)
+        self.assertEqual(response2.status_code, 200)
+        body2 = json.loads(response2.content)
+        self.assertEqual(body2["data"]["status"], "duplicate")
+
+        # License should still be active (not re-processed)
+        self.license.refresh_from_db()
+        self.assertEqual(self.license.status, LicenseStatus.ACTIVE)
+
+    # ------------------------------------------------------------ Failed payment
+
+    def test_payment_failed_suspends_license(self):
+        """payment.failed webhook transitions license pending -> suspended."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.failed",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        response = self._post_webhook(payload)
+        self.assertEqual(response.status_code, 200)
+        body = json.loads(response.content)
+        self.assertEqual(body["data"]["payment_status"], "failed")
+        self.assertEqual(body["data"]["license_status"], "suspended")
+
+        self.license.refresh_from_db()
+        self.assertEqual(self.license.status, LicenseStatus.SUSPENDED)
+
+    # ------------------------------------------------------------ Error handling
+
+    def test_invalid_signature_returns_401(self):
+        """Webhook with invalid signature returns 401."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.succeeded",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        response = self._post_webhook(payload, secret="wrong-secret")
+        self.assertEqual(response.status_code, 401)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "invalid_signature")
+
+    def test_missing_required_field_returns_400(self):
+        """Webhook missing required field returns 400."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.succeeded",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        del payload["organization_id"]
+        response = self._post_webhook(payload)
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "missing_field")
+
+    def test_unknown_event_type_returns_400(self):
+        """Webhook with unknown event type returns 400."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.unknown_type",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        response = self._post_webhook(payload)
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "invalid_event_type")
+
+    def test_nonexistent_license_returns_404(self):
+        """Webhook referencing nonexistent license returns 404."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.succeeded",
+            license_id="00000000-0000-0000-0000-000000000000",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        response = self._post_webhook(payload)
+        self.assertEqual(response.status_code, 404)
+
+    def test_nonexistent_organization_returns_404(self):
+        """Webhook referencing nonexistent organization returns 404."""
+        import uuid
+
+        payload = self._webhook_payload(
+            event_type="payment.succeeded",
+            organization_id="00000000-0000-0000-0000-000000000000",
+            idempotency_key=str(uuid.uuid4()),
+        )
+        response = self._post_webhook(payload)
+        self.assertEqual(response.status_code, 404)

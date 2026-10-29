@@ -2,12 +2,13 @@ from functools import wraps
 
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
-
 from .models import (
     Organization,
     UserProfile,
     OrganizationMembershipRole,
     SubscriptionLicense,
+    Payment,
+    PaymentEvent,
 )
 
 
@@ -16,7 +17,10 @@ RESOURCE_MODEL_MAP = {
     "UserProfile": UserProfile,
     "OrganizationMembershipRole": OrganizationMembershipRole,
     "SubscriptionLicense": SubscriptionLicense,
+    "Payment": Payment,
+    "PaymentEvent": PaymentEvent,
 }
+
 
 ORG_ADMIN_ACTIONS = {"view", "create", "update"}
 VIEW_ONLY_ACTIONS = {"view"}
@@ -27,6 +31,8 @@ ORG_ADMIN_RESOURCES = {
     "UserProfile": ORG_ADMIN_ACTIONS,
     "OrganizationMembershipRole": ORG_ADMIN_ACTIONS,
     "SubscriptionLicense": ORG_ADMIN_ACTIONS,
+    "Payment": VIEW_ONLY_ACTIONS,
+    "PaymentEvent": VIEW_ONLY_ACTIONS,
 }
 
 VIEW_ONLY_RESOURCES = {
@@ -34,6 +40,8 @@ VIEW_ONLY_RESOURCES = {
     "UserProfile": VIEW_ONLY_ACTIONS,
     "OrganizationMembershipRole": VIEW_ONLY_ACTIONS,
     "SubscriptionLicense": VIEW_ONLY_ACTIONS,
+    "Payment": VIEW_ONLY_ACTIONS,
+    "PaymentEvent": VIEW_ONLY_ACTIONS,
 }
 
 FULL_RESOURCES = {
@@ -41,6 +49,8 @@ FULL_RESOURCES = {
     "UserProfile": FULL_ACTIONS,
     "OrganizationMembershipRole": FULL_ACTIONS,
     "SubscriptionLicense": FULL_ACTIONS,
+    "Payment": FULL_ACTIONS,
+    "PaymentEvent": VIEW_ONLY_ACTIONS,
 }
 
 ROLE_PERMISSIONS = {

@@ -198,3 +198,98 @@ class SubscriptionLicense(TimestampedModel):
 
     def __str__(self):
         return f"{self.organization} - {self.product_code}"
+
+
+class PaymentStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class PaymentGatewayCode(models.TextChoices):
+    MOBILE_MONEY = "mobile_money", "Mobile Money"
+    CARD = "card", "Card"
+
+
+class PaymentEventType(models.TextChoices):
+    INITIATED = "payment.initiated", "Payment initiated"
+    SUCCEEDED = "payment.succeeded", "Payment succeeded"
+    FAILED = "payment.failed", "Payment failed"
+    CANCELLED = "payment.cancelled", "Payment cancelled"
+    RECONCILED = "payment.reconciled", "Payment reconciled"
+
+
+class Payment(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name="payments",
+    )
+    license = models.ForeignKey(
+        SubscriptionLicense,
+        on_delete=models.PROTECT,
+        related_name="payments",
+        null=True,
+        blank=True,
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    gateway = models.CharField(
+        max_length=20,
+        choices=PaymentGatewayCode.choices,
+    )
+    gateway_reference = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(
+        max_length=9,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
+    idempotency_key = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=PaymentStatus.values),
+                name="core_payment_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(gateway__in=PaymentGatewayCode.values),
+                name="core_payment_gateway_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(amount__gt=0),
+                name="core_payment_amount_positive",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.id} - {self.status}"
+
+
+class PaymentEvent(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+    event_type = models.CharField(
+        max_length=30,
+        choices=PaymentEventType.choices,
+    )
+    event_id = models.UUIDField()
+    payload = models.JSONField(default=dict)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(event_type__in=PaymentEventType.values),
+                name="core_payment_event_type_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} - {self.payment_id}"

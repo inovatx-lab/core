@@ -73,4 +73,10 @@ urlpatterns = [
         views.license_delete,
         name="license-delete",
     ),
+    # Payment webhook
+    path(
+        "api/v1/payments/webhook/",
+        views.payment_webhook,
+        name="payment-webhook",
+    ),
 ]
