@@ -242,6 +242,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.2.1: Define initial `SubscriptionLicense` state machine.
   - Deliverable: license lifecycle policy
   - Evidence: state diagram and tests
+  - Status: Complete; license lifecycle policy documented in `inovatx_context/inovatx_license_lifecycle_policy.md` with states (`pending`, `active`, `suspended`, `expired`, `cancelled`), allowed/prohibited transitions with triggers/guards/effects, payment lifecycle decoupling from license lifecycle (PRD Decision #3), `valid_until` not treated as full lifecycle (FR-06), `org_admin` guards for admin transitions, error semantics per P1.2.3-D1/D2. No runtime implementation created. Completion review pending.
+  - Evidence location: `inovatx_context/inovatx_license_lifecycle_policy.md`, `inovatx_context/inovatx_task_2_2_1_traceability.md`.
 - Task 2.2.2: Define payment state and event model.
   - Deliverable: payment model and event contract
   - Evidence: schema and processing flow
