@@ -235,6 +235,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.1.3: Implement Django permission enforcement for the first client flow.
   - Deliverable: working access checks in the first user journeys
   - Evidence: authorization tests
+  - Status: Complete; Django permission enforcement implemented in `core/permissions.py`, `core/views.py`, and `config/urls.py` with CRUD endpoints for Organization, UserProfile, OrganizationMembershipRole, and SubscriptionLicense; permission boundaries per Task 2.1.1 RBAC matrix and Task 2.1.2 membership rules (org_admin: view/create/update/no-delete; instructor/student/parent/sme_staff: view-only; system_admin: full CRUD within tenant context); error semantics per P1.2.3-D1 (401/400/404/403/500 with correlation IDs); all 41 tests pass. Completion review pending.
+  - Evidence location: `core/permissions.py`, `core/views.py`, `config/urls.py`, `core/tests.py` (CoreAuthorizationTests).
 
 ### Activity 2.2: Build subscription and payment foundations
 - Task 2.2.1: Define initial `SubscriptionLicense` state machine.

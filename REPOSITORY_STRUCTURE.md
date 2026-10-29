@@ -20,13 +20,14 @@ INOVEXA/
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py
-├── core/                         # Django Core app skeleton; no domain models yet
+├── core/
 │   ├── __init__.py
 │   ├── admin.py
 │   ├── apps.py
 │   ├── models.py
+│   ├── permissions.py     # Task 2.1.3 RBAC permission enforcement
 │   ├── tests.py
-│   ├── views.py
+│   ├── views.py           # Task 2.1.3 CRUD views with permission enforcement
 │   └── migrations/
 │       └── __init__.py
 ├── docker-compose.yml           # Phase 0 planning skeleton; not runnable
@@ -63,6 +64,7 @@ INOVEXA/
     ├── inovatx_task_1_3_3_traceability.md
     ├── inovatx_task_2_1_1_traceability.md
     ├── inovatx_task_2_1_2_traceability.md
+    ├── inovatx_task_2_1_3_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
