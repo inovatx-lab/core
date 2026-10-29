@@ -247,6 +247,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.2.2: Define payment state and event model.
   - Deliverable: payment model and event contract
   - Evidence: schema and processing flow
+  - Status: Complete; payment state and event model documented in `inovatx_context/inovatx_payment_state_event_model.md` with payment states (`pending`, `succeeded`, `failed`, `cancelled`), payment event types and versioned signed payload schema, webhook security requirements (signed, idempotent, replay-protected), retry/dead-letter policy (max 5 retries, exponential backoff, DLQ per Decision log D6), idempotency TTL 24 hours (D7), error semantics per P1.2.3-D1/D2. Payment lifecycle decoupled from license lifecycle (PRD Decision #3). No runtime implementation created. Completion review pending.
+  - Evidence location: `inovatx_context/inovatx_payment_state_event_model.md`, `inovatx_context/inovatx_task_2_2_2_traceability.md`.
 - Task 2.2.3: Implement minimal payment receipt and subscription activation logic.
   - Deliverable: receipt-to-license activation flow
   - Evidence: end-to-end local test with mock gateway
