@@ -2,7 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 
 
 class OrganizationType(models.TextChoices):
@@ -293,3 +293,38 @@ class PaymentEvent(TimestampedModel):
 
     def __str__(self):
         return f"{self.event_type} - {self.payment_id}"
+
+
+class ParentChildLink(TimestampedModel):
+    """Links a parent UserProfile to a child UserProfile within the same organization.
+
+    Per PRD FR-01 and UML §1, parent-child mapping is part of the onboarding scope.
+    Viewing rights: parent may view child's profile; no other implicit permissions.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parent_profile = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name="child_links",
+    )
+    child_profile = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name="parent_links",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("parent_profile", "child_profile"),
+                name="uq_parent_child_link",
+            ),
+            models.CheckConstraint(
+                condition=~Q(parent_profile=models.F("child_profile")),
+                name="core_parent_child_not_self",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.parent_profile} -> {self.child_profile}"

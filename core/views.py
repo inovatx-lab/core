@@ -11,6 +11,7 @@ from .models import (
     UserProfile,
     OrganizationMembershipRole,
     SubscriptionLicense,
+    ParentChildLink,
     OrganizationType,
     OrganizationStatus,
     MembershipRoleCode,
@@ -968,6 +969,131 @@ def institutional_register(request):
             "correlation_id": str(correlation_id),
         },
         status=201,
+    )
+
+
+# ---------------------------------------------------------------- Parent-child mapping
+
+@require_http_methods(["GET"])
+@require_tenant_context
+@require_permission("ParentChildLink", "view")
+def parent_child_list(request):
+    """List child links for the authenticated parent within the tenant context."""
+    ctx = request.tenant_context
+    correlation_id = ctx["correlation_id"]
+
+    links = (
+        ParentChildLink.objects.filter(parent_profile=ctx["user_profile"])
+        .select_related("child_profile", "child_profile__user")
+    )
+    data = [
+        {
+            "link_id": str(link.id),
+            "child_profile_id": str(link.child_profile.id),
+            "child_user_id": str(link.child_profile.user.id),
+            "child_username": link.child_profile.user.username,
+            "child_email": link.child_profile.user.email,
+            "child_phone_number": link.child_profile.phone_number,
+            "created_at": link.created_at.isoformat(),
+        }
+        for link in links
+    ]
+    return JsonResponse(
+        {"data": data, "correlation_id": str(correlation_id)},
+        status=200,
+    )
+
+
+@require_http_methods(["POST"])
+@require_tenant_context
+@require_permission("ParentChildLink", "create")
+def parent_child_create(request):
+    """Create a parent-child link within the tenant context.
+
+    Both parent_profile and child_profile must belong to the same organization.
+    The authenticated user must be the parent_profile.
+    """
+    ctx = request.tenant_context
+    correlation_id = ctx["correlation_id"]
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return _error_response(400, "invalid_json", "Request body must be valid JSON", correlation_id)
+
+    child_profile_id = body.get("child_profile_id")
+
+    if not child_profile_id:
+        return _error_response(
+            400, "missing_field", "Required field missing: child_profile_id", correlation_id,
+            field="child_profile_id",
+        )
+
+    # Verify child profile exists in the same organization
+    try:
+        child_profile = UserProfile.objects.get(
+            pk=child_profile_id, organization=ctx["organization"]
+        )
+    except UserProfile.DoesNotExist:
+        return _error_response(
+            404, "profile_not_found", "Child profile not found in this organization", correlation_id
+        )
+
+    # Parent cannot link to themselves
+    if str(child_profile.id) == str(ctx["user_profile"].id):
+        return _error_response(
+            400, "self_link_not_allowed", "A parent cannot link to themselves", correlation_id,
+            field="child_profile_id",
+        )
+
+    try:
+        with transaction.atomic():
+            link = ParentChildLink.objects.create(
+                parent_profile=ctx["user_profile"],
+                child_profile=child_profile,
+            )
+    except IntegrityError as exc:
+        return _error_response(400, "link_already_exists", str(exc), correlation_id)
+
+    return JsonResponse(
+        {
+            "data": {
+                "link_id": str(link.id),
+                "parent_profile_id": str(link.parent_profile.id),
+                "child_profile_id": str(link.child_profile.id),
+                "created_at": link.created_at.isoformat(),
+            },
+            "correlation_id": str(correlation_id),
+        },
+        status=201,
+    )
+
+
+@require_http_methods(["DELETE"])
+@require_tenant_context
+@require_permission("ParentChildLink", "delete")
+def parent_child_delete(request, link_id):
+    """Delete a parent-child link within the tenant context.
+
+    Only the parent of the link can delete it.
+    """
+    ctx = request.tenant_context
+    correlation_id = ctx["correlation_id"]
+
+    try:
+        link = ParentChildLink.objects.get(
+            pk=link_id,
+            parent_profile=ctx["user_profile"],
+        )
+    except ParentChildLink.DoesNotExist:
+        return _error_response(
+            404, "link_not_found", "Parent-child link not found", correlation_id
+        )
+
+    link.delete()
+    return JsonResponse(
+        {"data": None, "correlation_id": str(correlation_id)},
+        status=204,
     )
 
 

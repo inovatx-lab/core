@@ -269,6 +269,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.3.3: Implement parent-child mapping model and access policy.
   - Deliverable: parent-child relationship and visibility rules
   - Evidence: relation tests
+  - Status: Complete; `ParentChildLink` Django model created with constraints (unique parent-child pair, no self-link); `GET/POST/DELETE /api/v1/parent-children/` views implemented with tenant context and permission enforcement; access policy: parent/org_admin manage links, other roles view-only; 10 parent-child tests pass; all 71 tests pass. Completion review pending.
+  - Evidence location: `core/models.py` (ParentChildLink), `core/views.py` (parent_child_list/create/delete), `config/urls.py`, `core/permissions.py`, `core/migrations/0003_parentchildlink.py`, `core/tests.py` (CoreParentChildTests), `inovatx_context/inovatx_parent_child_mapping.md`, `inovatx_context/inovatx_task_2_3_3_traceability.md`.
 
 ### Phase 2 Exit Criteria
 - Tenant-aware user and org management works.

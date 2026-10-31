@@ -7,6 +7,7 @@ from .models import (
     UserProfile,
     OrganizationMembershipRole,
     SubscriptionLicense,
+    ParentChildLink,
     Payment,
     PaymentEvent,
 )
@@ -17,6 +18,7 @@ RESOURCE_MODEL_MAP = {
     "UserProfile": UserProfile,
     "OrganizationMembershipRole": OrganizationMembershipRole,
     "SubscriptionLicense": SubscriptionLicense,
+    "ParentChildLink": ParentChildLink,
     "Payment": Payment,
     "PaymentEvent": PaymentEvent,
 }
@@ -25,12 +27,14 @@ RESOURCE_MODEL_MAP = {
 ORG_ADMIN_ACTIONS = {"view", "create", "update"}
 VIEW_ONLY_ACTIONS = {"view"}
 FULL_ACTIONS = {"view", "create", "update", "delete"}
+PARENT_CHILD_ACTIONS = {"view", "create", "delete"}
 
 ORG_ADMIN_RESOURCES = {
     "Organization": ORG_ADMIN_ACTIONS,
     "UserProfile": ORG_ADMIN_ACTIONS,
     "OrganizationMembershipRole": ORG_ADMIN_ACTIONS,
     "SubscriptionLicense": ORG_ADMIN_ACTIONS,
+    "ParentChildLink": PARENT_CHILD_ACTIONS,
     "Payment": VIEW_ONLY_ACTIONS,
     "PaymentEvent": VIEW_ONLY_ACTIONS,
 }
@@ -40,6 +44,7 @@ VIEW_ONLY_RESOURCES = {
     "UserProfile": VIEW_ONLY_ACTIONS,
     "OrganizationMembershipRole": VIEW_ONLY_ACTIONS,
     "SubscriptionLicense": VIEW_ONLY_ACTIONS,
+    "ParentChildLink": VIEW_ONLY_ACTIONS,
     "Payment": VIEW_ONLY_ACTIONS,
     "PaymentEvent": VIEW_ONLY_ACTIONS,
 }
@@ -49,7 +54,18 @@ FULL_RESOURCES = {
     "UserProfile": FULL_ACTIONS,
     "OrganizationMembershipRole": FULL_ACTIONS,
     "SubscriptionLicense": FULL_ACTIONS,
+    "ParentChildLink": PARENT_CHILD_ACTIONS,
     "Payment": FULL_ACTIONS,
+    "PaymentEvent": VIEW_ONLY_ACTIONS,
+}
+
+PARENT_RESOURCES = {
+    "Organization": VIEW_ONLY_ACTIONS,
+    "UserProfile": VIEW_ONLY_ACTIONS,
+    "OrganizationMembershipRole": VIEW_ONLY_ACTIONS,
+    "SubscriptionLicense": VIEW_ONLY_ACTIONS,
+    "ParentChildLink": PARENT_CHILD_ACTIONS,
+    "Payment": VIEW_ONLY_ACTIONS,
     "PaymentEvent": VIEW_ONLY_ACTIONS,
 }
 
@@ -57,7 +73,7 @@ ROLE_PERMISSIONS = {
     "org_admin": ORG_ADMIN_RESOURCES,
     "instructor": VIEW_ONLY_RESOURCES,
     "student": VIEW_ONLY_RESOURCES,
-    "parent": VIEW_ONLY_RESOURCES,
+    "parent": PARENT_RESOURCES,
     "sme_staff": VIEW_ONLY_RESOURCES,
 }
 

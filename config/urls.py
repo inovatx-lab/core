@@ -91,4 +91,20 @@ urlpatterns = [
         views.institutional_register,
         name="institutional-register",
     ),
+    # Parent-child mapping
+    path(
+        "api/v1/parent-children/",
+        views.parent_child_list,
+        name="parent-child-list",
+    ),
+    path(
+        "api/v1/parent-children/create/",
+        views.parent_child_create,
+        name="parent-child-create",
+    ),
+    path(
+        "api/v1/parent-children/<uuid:link_id>/delete/",
+        views.parent_child_delete,
+        name="parent-child-delete",
+    ),
 ]

@@ -1239,3 +1239,254 @@ class CoreInstitutionalRegistrationTests(TestCase):
         self.assertEqual(response.status_code, 400)
         body = json.loads(response.content)
         self.assertEqual(body["errors"][0]["code"], "invalid_json")
+
+
+class CoreParentChildTests(TestCase):
+    """Parent-child mapping tests for Task 2.3.3.
+
+    Tests the parent-child link views:
+    - Create link between parent and child profiles in same org
+    - List child links for a parent
+    - Delete a parent-child link
+    - Self-link not allowed (400)
+    - Link to profile in different org not found (404)
+    - Duplicate link not allowed (400)
+    - Non-parent role cannot create link (403)
+    """
+
+    ORG_ID_HEADER = "HTTP_X_INOVATX_ORGANIZATION_ID"
+    CORR_ID_HEADER = "HTTP_X_CORRELATION_ID"
+
+    def setUp(self):
+        self.User = get_user_model()
+
+        self.org = Organization.objects.create(
+            name="Test School",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+
+        # Parent user
+        self.parent_user = self.User.objects.create_user(
+            username="parent_user", password="test-password"
+        )
+        self.parent_profile = UserProfile.objects.create(
+            user=self.parent_user,
+            organization=self.org,
+            phone_number="+256700000100",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.parent_profile, role_code=MembershipRoleCode.PARENT
+        )
+
+        # Child user (student role)
+        self.child_user = self.User.objects.create_user(
+            username="child_user", password="test-password"
+        )
+        self.child_profile = UserProfile.objects.create(
+            user=self.child_user,
+            organization=self.org,
+            phone_number="+256700000200",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.child_profile, role_code=MembershipRoleCode.STUDENT
+        )
+
+        # Another org user (for cross-org test)
+        self.other_org = Organization.objects.create(
+            name="Other School",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+        self.other_user = self.User.objects.create_user(
+            username="other_user", password="test-password"
+        )
+        self.other_profile = UserProfile.objects.create(
+            user=self.other_user,
+            organization=self.other_org,
+            phone_number="+256700000300",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.other_profile, role_code=MembershipRoleCode.STUDENT
+        )
+
+    def _headers(self, org_id=None, correlation_id=None):
+        headers = {}
+        if org_id is not None:
+            headers[self.ORG_ID_HEADER] = str(org_id)
+        if correlation_id is not None:
+            headers[self.CORR_ID_HEADER] = str(correlation_id)
+        return headers
+
+    def _post(self, url_name, payload=None, org_id=None, correlation_id=None):
+        import json
+
+        headers = self._headers(org_id=org_id, correlation_id=correlation_id)
+        if payload is not None:
+            return self.client.post(
+                reverse(url_name),
+                data=json.dumps(payload),
+                content_type="application/json",
+                **headers,
+            )
+        return self.client.get(reverse(url_name), **headers)
+
+    # ------------------------------------------------------------ Create link
+
+    def test_create_parent_child_link(self):
+        """Parent can create link to child in same org."""
+        self.client.force_login(self.parent_user)
+        response = self._post(
+            "parent-child-create",
+            payload={"child_profile_id": str(self.child_profile.id)},
+            org_id=self.org.id,
+        )
+        self.assertEqual(response.status_code, 201)
+        body = json.loads(response.content)
+        self.assertEqual(body["data"]["parent_profile_id"], str(self.parent_profile.id))
+        self.assertEqual(body["data"]["child_profile_id"], str(self.child_profile.id))
+
+        # Verify link exists in database
+        from .models import ParentChildLink
+
+        self.assertTrue(
+            ParentChildLink.objects.filter(
+                parent_profile=self.parent_profile,
+                child_profile=self.child_profile,
+            ).exists()
+        )
+
+    def test_create_link_self_not_allowed(self):
+        """Parent cannot link to themselves."""
+        self.client.force_login(self.parent_user)
+        response = self._post(
+            "parent-child-create",
+            payload={"child_profile_id": str(self.parent_profile.id)},
+            org_id=self.org.id,
+        )
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "self_link_not_allowed")
+
+    def test_create_link_cross_org_not_found(self):
+        """Linking to profile in different org returns 404."""
+        self.client.force_login(self.parent_user)
+        response = self._post(
+            "parent-child-create",
+            payload={"child_profile_id": str(self.other_profile.id)},
+            org_id=self.org.id,
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_create_duplicate_link_not_allowed(self):
+        """Creating duplicate link returns 400."""
+        from .models import ParentChildLink
+
+        ParentChildLink.objects.create(
+            parent_profile=self.parent_profile,
+            child_profile=self.child_profile,
+        )
+
+        self.client.force_login(self.parent_user)
+        response = self._post(
+            "parent-child-create",
+            payload={"child_profile_id": str(self.child_profile.id)},
+            org_id=self.org.id,
+        )
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "link_already_exists")
+
+    def test_non_parent_cannot_create_link(self):
+        """Non-parent role cannot create parent-child link (403)."""
+        self.client.force_login(self.child_user)
+        response = self._post(
+            "parent-child-create",
+            payload={"child_profile_id": str(self.child_profile.id)},
+            org_id=self.org.id,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    # ------------------------------------------------------------ List links
+
+    def test_list_child_links(self):
+        """Parent can list their child links."""
+        from .models import ParentChildLink
+
+        ParentChildLink.objects.create(
+            parent_profile=self.parent_profile,
+            child_profile=self.child_profile,
+        )
+
+        self.client.force_login(self.parent_user)
+        response = self._post("parent-child-list", org_id=self.org.id)
+        self.assertEqual(response.status_code, 200)
+        body = json.loads(response.content)
+        self.assertEqual(len(body["data"]), 1)
+        self.assertEqual(body["data"][0]["child_profile_id"], str(self.child_profile.id))
+
+    def test_list_no_links(self):
+        """Parent with no links gets empty list."""
+        self.client.force_login(self.parent_user)
+        response = self._post("parent-child-list", org_id=self.org.id)
+        self.assertEqual(response.status_code, 200)
+        body = json.loads(response.content)
+        self.assertEqual(body["data"], [])
+
+    # ------------------------------------------------------------ Delete link
+
+    def test_delete_parent_child_link(self):
+        """Parent can delete their own link."""
+        from .models import ParentChildLink
+
+        link = ParentChildLink.objects.create(
+            parent_profile=self.parent_profile,
+            child_profile=self.child_profile,
+        )
+
+        self.client.force_login(self.parent_user)
+        response = self.client.delete(
+            reverse("parent-child-delete", args=[link.id]),
+            **self._headers(org_id=self.org.id),
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(
+            ParentChildLink.objects.filter(id=link.id).exists()
+        )
+
+    def test_delete_nonexistent_link_returns_404(self):
+        """Deleting nonexistent link returns 404."""
+        self.client.force_login(self.parent_user)
+        response = self.client.delete(
+            reverse("parent-child-delete", args=["00000000-0000-0000-0000-000000000000"]),
+            **self._headers(org_id=self.org.id),
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_link_not_owned_by_parent_returns_404(self):
+        """Parent cannot delete link owned by another parent."""
+        from .models import ParentChildLink
+
+        # Another parent creates link
+        other_parent = self.User.objects.create_user(
+            username="other_parent", password="test-password"
+        )
+        other_profile = UserProfile.objects.create(
+            user=other_parent,
+            organization=self.org,
+            phone_number="+256700000400",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=other_profile, role_code=MembershipRoleCode.PARENT
+        )
+        link = ParentChildLink.objects.create(
+            parent_profile=other_profile,
+            child_profile=self.child_profile,
+        )
+
+        self.client.force_login(self.parent_user)
+        response = self.client.delete(
+            reverse("parent-child-delete", args=[link.id]),
+            **self._headers(org_id=self.org.id),
+        )
+        self.assertEqual(response.status_code, 404)
