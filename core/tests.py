@@ -929,3 +929,136 @@ class CorePaymentTests(TestCase):
         )
         response = self._post_webhook(payload)
         self.assertEqual(response.status_code, 404)
+
+
+class CoreRegistrationTests(TestCase):
+    """Individual registration tests for Task 2.3.1.
+
+    Tests the individual registration endpoint:
+    - Successful registration creates user, org, profile, role, license
+    - Duplicate username returns 409
+    - Duplicate email returns 409
+    - Missing required fields return 400
+    - License is created in pending status (awaiting payment)
+    """
+
+    def setUp(self):
+        self.User = get_user_model()
+
+    def _post_register(self, payload):
+        import json
+
+        return self.client.post(
+            reverse("individual-register"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    # ------------------------------------------------------------ Successful registration
+
+    def test_successful_individual_registration(self):
+        """Registration creates user, org, profile, org_admin role, and pending license."""
+        payload = {
+            "username": "new_student",
+            "password": "SecurePass123",
+            "email": "student@example.com",
+            "phone_number": "+256700000100",
+            "organization_name": "Student Org",
+        }
+        response = self._post_register(payload)
+        self.assertEqual(response.status_code, 201)
+        body = json.loads(response.content)
+
+        data = body["data"]
+        self.assertEqual(data["username"], "new_student")
+        self.assertEqual(data["email"], "student@example.com")
+        self.assertEqual(data["organization_type"], "individual")
+        self.assertEqual(data["organization_status"], "pending")
+        self.assertEqual(data["role_code"], "org_admin")
+        self.assertEqual(data["license_status"], "pending")
+
+        # Verify records exist in database
+        from .models import (
+            Organization,
+            UserProfile,
+            OrganizationMembershipRole,
+            SubscriptionLicense,
+        )
+
+        org = Organization.objects.get(name="Student Org")
+        self.assertEqual(org.org_type, OrganizationType.INDIVIDUAL)
+        self.assertEqual(org.status, OrganizationStatus.PENDING)
+
+        profile = UserProfile.objects.get(organization=org)
+        self.assertEqual(profile.user.username, "new_student")
+        self.assertEqual(profile.phone_number, "+256700000100")
+
+        role = OrganizationMembershipRole.objects.get(user_profile=profile)
+        self.assertEqual(role.role_code, MembershipRoleCode.ORG_ADMIN)
+
+        license_record = SubscriptionLicense.objects.get(organization=org)
+        self.assertEqual(license_record.status, LicenseStatus.PENDING)
+        self.assertEqual(license_record.seat_capacity, 1)
+        self.assertEqual(license_record.product_code, SubscriptionProductCode.EDTECH_LMS)
+
+    def test_duplicate_username_returns_409(self):
+        """Registering with an existing username returns 409."""
+        # First registration
+        self.User.objects.create_user(
+            username="existing_user", email="existing@example.com", password="password123"
+        )
+
+        payload = {
+            "username": "existing_user",
+            "password": "SecurePass123",
+            "email": "different@example.com",
+            "phone_number": "+256700000200",
+            "organization_name": "Another Org",
+        }
+        response = self._post_register(payload)
+        self.assertEqual(response.status_code, 409)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "duplicate_username")
+        self.assertEqual(body["errors"][0]["field"], "username")
+
+    def test_duplicate_email_returns_409(self):
+        """Registering with an existing email returns 409."""
+        self.User.objects.create_user(
+            username="user_one", email="taken@example.com", password="password123"
+        )
+
+        payload = {
+            "username": "user_two",
+            "password": "SecurePass123",
+            "email": "taken@example.com",
+            "phone_number": "+256700000300",
+            "organization_name": "Org Two",
+        }
+        response = self._post_register(payload)
+        self.assertEqual(response.status_code, 409)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "duplicate_email")
+        self.assertEqual(body["errors"][0]["field"], "email")
+
+    def test_missing_required_field_returns_400(self):
+        """Missing required field returns 400."""
+        payload = {
+            "username": "incomplete",
+            "password": "SecurePass123",
+            # missing email, phone_number, organization_name
+        }
+        response = self._post_register(payload)
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "missing_field")
+
+    def test_invalid_json_returns_400(self):
+        """Invalid JSON body returns 400."""
+        response = self.client.post(
+            reverse("individual-register"),
+            data="not valid json",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.content)
+        self.assertEqual(body["errors"][0]["code"], "invalid_json")

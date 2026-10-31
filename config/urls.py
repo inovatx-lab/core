@@ -79,4 +79,10 @@ urlpatterns = [
         views.payment_webhook,
         name="payment-webhook",
     ),
+    # Individual registration
+    path(
+        "api/v1/register/",
+        views.individual_register,
+        name="individual-register",
+    ),
 ]

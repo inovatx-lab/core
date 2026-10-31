@@ -259,6 +259,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.3.1: Implement individual registration path.
   - Deliverable: individual onboarding endpoint and flow
   - Evidence: successful registration test
+  - Status: Complete; `POST /api/v1/register/` endpoint implemented creating User, Organization (individual, pending), UserProfile, OrganizationMembershipRole (org_admin), SubscriptionLicense (pending); duplicate username/email rejected with 409; missing fields rejected with 400; invalid JSON rejected with 400; license created pending awaiting payment activation (Task 2.2.3); 5 registration tests pass; all 54 tests pass. Completion review pending.
+  - Evidence location: `core/views.py` (individual_register), `config/urls.py`, `core/tests.py` (CoreRegistrationTests), `inovatx_context/inovatx_individual_registration_flow.md`, `inovatx_context/inovatx_task_2_3_1_traceability.md`.
 - Task 2.3.2: Implement institutional onboarding path.
   - Deliverable: institutional signup flow
   - Evidence: onboarding test for school/org accounts

@@ -843,3 +843,108 @@ def payment_webhook(request):
         },
         status=200,
     )
+
+
+# ---------------------------------------------------------------- Individual registration
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def individual_register(request):
+    """Individual registration endpoint.
+
+    Creates a new user, organization (individual type, pending), user profile,
+    organization membership role (org_admin), and a pending subscription license.
+    No tenant context is required — the user does not yet belong to an organization.
+
+    This is an open endpoint (no authentication required). Security is provided by
+    input validation and unique constraints.
+    """
+    correlation_id = _extract_correlation_id(request)
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return _error_response(400, "invalid_json", "Request body must be valid JSON", correlation_id)
+
+    # Validate required fields
+    required_fields = ("username", "password", "email", "phone_number", "organization_name")
+    for field in required_fields:
+        if not body.get(field):
+            return _error_response(
+                400, "missing_field", f"Required field missing: {field}", correlation_id,
+                field=field,
+            )
+
+    username = body["username"]
+    password = body["password"]
+    email = body["email"]
+    phone_number = body["phone_number"]
+    org_name = body["organization_name"]
+
+    User = get_user_model()
+
+    # Check for duplicate username/email
+    if User.objects.filter(username=username).exists():
+        return _error_response(409, "duplicate_username", "Username already taken", correlation_id, field="username")
+    if User.objects.filter(email=email).exists():
+        return _error_response(409, "duplicate_email", "Email already registered", correlation_id, field="email")
+
+    try:
+        with transaction.atomic():
+            # Create Django user
+            auth_user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+            )
+
+            # Create organization (individual, pending)
+            organization = Organization.objects.create(
+                name=org_name,
+                org_type=OrganizationType.INDIVIDUAL,
+                status=OrganizationStatus.PENDING,
+            )
+
+            # Create user profile
+            profile = UserProfile.objects.create(
+                user=auth_user,
+                organization=organization,
+                phone_number=phone_number,
+            )
+
+            # Create org_admin role assignment
+            OrganizationMembershipRole.objects.create(
+                user_profile=profile,
+                role_code=MembershipRoleCode.ORG_ADMIN,
+            )
+
+            # Create pending subscription license
+            license_record = SubscriptionLicense.objects.create(
+                organization=organization,
+                product_code=SubscriptionProductCode.EDTECH_LMS,
+                seat_capacity=1,
+                status=LicenseStatus.PENDING,
+            )
+
+    except (ValidationError, IntegrityError) as exc:
+        return _error_response(400, "registration_failed", str(exc), correlation_id)
+
+    return JsonResponse(
+        {
+            "data": {
+                "user_id": str(auth_user.id),
+                "username": auth_user.username,
+                "email": auth_user.email,
+                "organization_id": str(organization.id),
+                "organization_name": organization.name,
+                "organization_type": organization.org_type,
+                "organization_status": organization.status,
+                "profile_id": str(profile.id),
+                "role_code": MembershipRoleCode.ORG_ADMIN,
+                "license_id": str(license_record.id),
+                "license_status": license_record.status,
+            },
+            "correlation_id": str(correlation_id),
+        },
+        status=201,
+    )
