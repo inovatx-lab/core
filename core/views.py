@@ -753,10 +753,10 @@ def payment_webhook(request):
         return JsonResponse(
             {
                 "data": {"status": "duplicate", "event_id": str(event_id)},
-                "correlation_id": str(correlation_id),
-            },
-            status=200,
-        )
+            "correlation_id": str(correlation_id),
+        },
+        status=200,
+    )
 
     # Validate organization exists
     try:
@@ -843,6 +843,135 @@ def payment_webhook(request):
         },
         status=200,
     )
+
+
+# ---------------------------------------------------------------- Institutional registration
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def institutional_register(request):
+    """Institutional registration endpoint.
+
+    Creates a new user, organization (school/sme/ngo/enterprise type, pending),
+    user profile, organization membership role (org_admin), and a pending
+    subscription license with institutional seat capacity.
+
+    No tenant context is required — the user does not yet belong to an
+    organization. The endpoint is open (no authentication required) and secured
+    by input validation and unique constraints.
+
+    Institutional org types: school, sme, ngo, enterprise.
+    Individual org type is handled by individual_register (Task 2.3.1).
+    """
+    correlation_id = _extract_correlation_id(request)
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return _error_response(400, "invalid_json", "Request body must be valid JSON", correlation_id)
+
+    # Validate required fields
+    required_fields = ("username", "password", "email", "phone_number",
+                       "organization_name", "organization_type")
+    for field in required_fields:
+        if not body.get(field):
+            return _error_response(
+                400, "missing_field", f"Required field missing: {field}", correlation_id,
+                field=field,
+            )
+
+    username = body["username"]
+    password = body["password"]
+    email = body["email"]
+    phone_number = body["phone_number"]
+    org_name = body["organization_name"]
+    org_type = body["organization_type"]
+
+    # Validate org_type is institutional (not individual)
+    institutional_types = {
+        OrganizationType.SCHOOL, OrganizationType.SME,
+        OrganizationType.NGO, OrganizationType.ENTERPRISE,
+    }
+    if org_type not in institutional_types:
+        return _error_response(
+            400, "invalid_org_type",
+            f"Organization type '{org_type}' is not institutional. "
+            f"Use individual_register for individual accounts.",
+            correlation_id, field="organization_type",
+        )
+
+    User = get_user_model()
+
+    # Check for duplicate username/email
+    if User.objects.filter(username=username).exists():
+        return _error_response(409, "duplicate_username", "Username already taken", correlation_id, field="username")
+    if User.objects.filter(email=email).exists():
+        return _error_response(409, "duplicate_email", "Email already registered", correlation_id, field="email")
+
+    try:
+        with transaction.atomic():
+            # Create Django user
+            auth_user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+            )
+
+            # Create organization (institutional, pending)
+            organization = Organization.objects.create(
+                name=org_name,
+                org_type=org_type,
+                status=OrganizationStatus.PENDING,
+            )
+
+            # Create user profile
+            profile = UserProfile.objects.create(
+                user=auth_user,
+                organization=organization,
+                phone_number=phone_number,
+            )
+
+            # Create org_admin role assignment
+            OrganizationMembershipRole.objects.create(
+                user_profile=profile,
+                role_code=MembershipRoleCode.ORG_ADMIN,
+            )
+
+            # Create pending subscription license (institutional seat capacity)
+            seat_capacity = body.get("seat_capacity", 50)
+            license_record = SubscriptionLicense.objects.create(
+                organization=organization,
+                product_code=SubscriptionProductCode.EDTECH_LMS,
+                seat_capacity=seat_capacity,
+                status=LicenseStatus.PENDING,
+            )
+
+    except (ValidationError, IntegrityError) as exc:
+        return _error_response(400, "registration_failed", str(exc), correlation_id)
+
+    return JsonResponse(
+        {
+            "data": {
+                "user_id": str(auth_user.id),
+                "username": auth_user.username,
+                "email": auth_user.email,
+                "organization_id": str(organization.id),
+                "organization_name": organization.name,
+                "organization_type": organization.org_type,
+                "organization_status": organization.status,
+                "profile_id": str(profile.id),
+                "role_code": MembershipRoleCode.ORG_ADMIN,
+                "license_id": str(license_record.id),
+                "license_status": license_record.status,
+                "seat_capacity": license_record.seat_capacity,
+            },
+            "correlation_id": str(correlation_id),
+        },
+        status=201,
+    )
+
+
+# ---------------------------------------------------------------- Individual registration
 
 
 # ---------------------------------------------------------------- Individual registration

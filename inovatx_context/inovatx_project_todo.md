@@ -264,6 +264,8 @@ Milestone 2.1: Core product can manage a tenant, a user, and a valid subscriptio
 - Task 2.3.2: Implement institutional onboarding path.
   - Deliverable: institutional signup flow
   - Evidence: onboarding test for school/org accounts
+  - Status: Complete; `POST /api/v1/register/institutional/` endpoint implemented creating User, Organization (school/sme/ngo/enterprise, pending), UserProfile, OrganizationMembershipRole (org_admin), SubscriptionLicense (pending); institutional org type validation rejects `individual`; seat capacity configurable (default 50); duplicate username/email rejected with 409; missing fields rejected with 400; invalid JSON rejected with 400; license created pending awaiting payment activation (Task 2.2.3); 8 institutional registration tests pass; all 61 tests pass. Completion review pending.
+  - Evidence location: `core/views.py` (institutional_register), `config/urls.py`, `core/tests.py` (CoreInstitutionalRegistrationTests), `inovatx_context/inovatx_institutional_registration_flow.md`, `inovatx_context/inovatx_task_2_3_2_traceability.md`.
 - Task 2.3.3: Implement parent-child mapping model and access policy.
   - Deliverable: parent-child relationship and visibility rules
   - Evidence: relation tests

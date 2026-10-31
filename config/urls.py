@@ -85,4 +85,10 @@ urlpatterns = [
         views.individual_register,
         name="individual-register",
     ),
+    # Institutional registration
+    path(
+        "api/v1/register/institutional/",
+        views.institutional_register,
+        name="institutional-register",
+    ),
 ]

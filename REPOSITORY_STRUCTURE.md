@@ -41,6 +41,7 @@ INOVEXA/
     ├── inovatx_payment_state_event_model.md   # Task 2.2.2 payment state and event model
     ├── inovatx_payment_activation_flow.md     # Task 2.2.3 receipt-to-license activation flow
     ├── inovatx_individual_registration_flow.md # Task 2.3.1 individual registration flow
+    ├── inovatx_institutional_registration_flow.md # Task 2.3.2 institutional registration flow
     ├── inovatx_tenant_membership_rules.md     # Task 2.1.2 tenant-scoped membership rules
     ├── inovatx_initial_schema_migration_plan.md
     ├── inovatx_phase0_exit_review.md
@@ -73,6 +74,7 @@ INOVEXA/
     ├── inovatx_task_2_2_2_traceability.md
     ├── inovatx_task_2_2_3_traceability.md
     ├── inovatx_task_2_3_1_traceability.md
+    ├── inovatx_task_2_3_2_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
