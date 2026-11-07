@@ -304,7 +304,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
   - Evidence location: `core/tasks.py`, `core/celery.py`, `config/base_settings.py`, `requirements.txt`, `core/tests.py`, `inovatx_context/inovatx_task_3_2_1_traceability.md`.
 - Task 3.2.2: Build Celery task for cohort creation and member assignment.
   - Deliverable: cohort task
-  - Evidence: institutional onboarding test
+  - Evidence: `core/tasks.py` implements `provision_moodle_cohort` Celery task with `core_cohort_create_cohorts` and `core_cohort_add_cohort_members`; `core/tests.py` adds CoreCohortTaskTests (4 tests covering invalid UUID, missing org, individual org rejection, user membership mismatch); System check passes (0 issues); tasks.py imports verified OK. Tests require Redis broker/PostgreSQL not available in this environment. Completion review pending.
+  - Evidence location: `core/tasks.py`, `core/tests.py`, `inovatx_context/inovatx_task_3_2_2_traceability.md`.
 - Task 3.2.3: Add retry and error handling for Moodle API failures.
   - Deliverable: retry policy and dead-letter handling notes
   - Evidence: failure simulation and retry logs

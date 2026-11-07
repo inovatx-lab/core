@@ -159,3 +159,63 @@ def provision_moodle_user(
         "license_id": str(license_obj.id),
         "role_codes": list(role_codes),
     }
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=5)
+def provision_moodle_cohort(
+    self,
+    organization_id: str,
+    user_ids: list[str],
+    license_id: str,
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
+    """Create Moodle cohort and assign members for institutional org type.
+
+    Task 3.2.2: Build Celery task for cohort creation and member assignment.
+    """
+    try:
+        org_uuid = uuid.UUID(organization_id)
+        license_uuid = uuid.UUID(license_id)
+        user_uuids = [uuid.UUID(uid) for uid in user_ids]
+    except (ValueError, TypeError):
+        return {"status": "failed", "error": "invalid_uuid"}
+
+    org = Organization.objects.get(pk=org_uuid)
+    if org.org_type == "individual":
+        return {"status": "failed", "error": "individual_org_not_cohort"}
+
+    profiles = list(
+        UserProfile.objects.filter(
+            user__in=user_uuids, organization=org
+        ).select_related("user")
+    )
+    if len(profiles) != len(user_uuids):
+        return {"status": "failed", "error": "user_membership_mismatch"}
+
+    license_obj = SubscriptionLicense.objects.get(pk=license_uuid, organization=org)
+
+    cohort_payload = {
+        "name": f"{org.name} - Cohort",
+        "contextlevel": "context",
+        "contextinstanceid": 1,
+        "visible": 1,
+        "description": f"Provisioned for {org.name}",
+    }
+    cohort_id = _create_moodle_cohort(cohort_payload)
+    if cohort_id is None:
+        return {"status": "failed", "error": "cohort_creation_failed"}
+
+    user_ids_for_moodle = [p.user.id for p in profiles]
+    _add_cohort_members(cohort_id, user_ids_for_moodle)
+
+    license_obj.moodle_cohort_id = str(cohort_id)
+    license_obj.save()
+
+    return {
+        "status": "success",
+        "cohort_id": str(cohort_id),
+        "organization_id": str(org.id),
+        "user_ids": [str(uid) for uid in user_uuids],
+        "license_id": str(license_obj.id),
+        "member_count": len(user_ids_for_moodle),
+    }

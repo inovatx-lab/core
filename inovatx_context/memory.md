@@ -1,8 +1,22 @@
-# Memory — INOVATX Phase 3 Activity 3.2 Task 3.2.1
+# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.2
 
 Last updated: 2026-11-07
 
 ## What was built
+
+### Phase 3 Activity 3.2 Task 3.2.2 — Build Celery Task for Cohort Creation and Member Assignment
+- Added `provision_moodle_cohort` Celery task to `core/tasks.py`:
+  - Takes organization_id, user_ids (list), license_id, correlation_id as input
+  - Rejects individual org types (cohort provisioning is institutional only)
+  - Creates Moodle cohort via `core_cohort_create_cohorts`
+  - Adds members via `core_cohort_add_cohort_members`
+  - Updates `SubscriptionLicense.moodle_cohort_id` on success
+  - Validates user membership in organization
+  - Retry policy: max 5 retries, exponential backoff (Decision log D6)
+  - Idempotency key per-endpoint with 24-hour TTL (Decision log D7)
+  - Dead-letter queue on terminal failure (Decision log D6)
+  - Error semantics per P1.2.3-D1/D2
+- Added `core/tests.py` — CoreCohortTaskTests (4 tests: invalid UUID, missing org, individual org rejection, user membership mismatch)
 
 ### Phase 3 Activity 3.2 Task 3.2.1 — Build Celery Task for Moodle User Creation
 - Created `core/tasks.py` — Celery task `provision_moodle_user`:
@@ -65,12 +79,13 @@ Last updated: 2026-11-07
 - Task 3.1.2 complete — Moodle cohort creation and member assignment logic documented
 - Task 3.1.3 complete — JWT SSO contract and claims documented
 - Task 3.2.1 complete — Celery task for Moodle user creation implemented
-- All work committed and pushed to `feature/T3.2.1` (commit pending)
+- Task 3.2.2 complete — Celery task for cohort creation and member assignment implemented
+- All work committed and pushed to `feature/T3.2.2` (commit pending)
 - Django dev server running at `http://127.0.0.1:8000`
 
 ## Next session starts with
 
-Task 3.2.2 — Build Celery task for cohort creation and member assignment, OR Task 3.3.1 — Build SSO token generation in Django.
+Task 3.2.3 — Add retry and error handling for Moodle API failures, OR Task 3.3.1 — Build SSO token generation in Django.
 
 ## Open questions
 
