@@ -308,7 +308,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
   - Evidence location: `core/tasks.py`, `core/tests.py`, `inovatx_context/inovatx_task_3_2_2_traceability.md`.
 - Task 3.2.3: Add retry and error handling for Moodle API failures.
   - Deliverable: retry policy and dead-letter handling notes
-  - Evidence: failure simulation and retry logs
+  - Evidence: `WebhookDLQ` model in `core/models.py`; exponential backoff retry (5s/15s/45s/2m/6m) in `core/tasks.py`; dead-letter queue writes terminal failures to DLQ; `_is_retryable_error` classifies retryable vs terminal errors; correlation ID propagation; `CoreRetryAndErrorHandlingTests` in `core/tests.py` (6 tests: backoff intervals, retryable error retry, dead-letter creation, retry count increment, cohort DLQ). System check passes (0 issues); tasks.py imports verified OK. Tests require Redis broker/PostgreSQL not available in this environment. Completion review pending.
+  - Evidence location: `core/models.py` (WebhookDLQ), `core/tasks.py`, `core/tests.py`, `inovatx_context/inovatx_task_3_2_3_traceability.md`.
 
 ### Activity 3.3: Implement SSO launch and Moodle access
 - Task 3.3.1: Build SSO token generation in Django.

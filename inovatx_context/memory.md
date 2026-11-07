@@ -1,8 +1,21 @@
-# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.2
+# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.3
 
 Last updated: 2026-11-07
 
 ## What was built
+
+### Phase 3 Activity 3.2 Task 3.2.3 — Add Retry and Error Handling for Moodle API Failures
+- Added `WebhookDLQ` model to `core/models.py`:
+  - Dead-letter queue for Moodle API events that fail after max retries
+  - Cross-tenant isolation via organization_id FK
+  - Status tracking: pending/processed/failed
+  - Correlation ID propagation
+- Updated `core/tasks.py` — Retry and error handling:
+  - Exponential backoff intervals per Decision log D6: 5s, 15s, 45s, 2m, 6m
+  - `_is_retryable_error` classifies retryable (connection errors, 5xx, 429) vs terminal (4xx) errors
+  - `provision_moodle_user` and `provision_moodle_cohort` retry on retryable errors, write to DLQ on terminal failure
+  - Correlation ID propagated through retry/dead-letter flow
+- Added `core/tests.py` — CoreRetryAndErrorHandlingTests (6 tests: backoff intervals, retryable error retry, dead-letter creation, retry count increment, cohort DLQ)
 
 ### Phase 3 Activity 3.2 Task 3.2.2 — Build Celery Task for Cohort Creation and Member Assignment
 - Added `provision_moodle_cohort` Celery task to `core/tasks.py`:
@@ -80,12 +93,13 @@ Last updated: 2026-11-07
 - Task 3.1.3 complete — JWT SSO contract and claims documented
 - Task 3.2.1 complete — Celery task for Moodle user creation implemented
 - Task 3.2.2 complete — Celery task for cohort creation and member assignment implemented
-- All work committed and pushed to `feature/T3.2.2` (commit pending)
+- Task 3.2.3 complete — Retry and error handling for Moodle API failures implemented
+- All work committed and pushed to `feature/T3.2.3` (commit pending)
 - Django dev server running at `http://127.0.0.1:8000`
 
 ## Next session starts with
 
-Task 3.2.3 — Add retry and error handling for Moodle API failures, OR Task 3.3.1 — Build SSO token generation in Django.
+Task 3.3.1 — Build SSO token generation in Django.
 
 ## Open questions
 

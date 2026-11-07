@@ -328,3 +328,43 @@ class ParentChildLink(TimestampedModel):
 
     def __str__(self):
         return f"{self.parent_profile} -> {self.child_profile}"
+
+
+class WebhookDLQ(TimestampedModel):
+    """Dead-letter queue for Moodle API events that fail after max retries.
+
+    Per Decision log D6, terminal Moodle API failures are written here for
+    manual review with a 2-hour SLA. Cross-tenant isolation enforced via
+    organization_id FK.
+    """
+
+    DLQ_STATUS_PENDING = "pending"
+    DLQ_STATUS_PROCESSED = "processed"
+    DLQ_STATUS_FAILED = "failed"
+
+    DLQ_STATUS_CHOICES = [
+        (DLQ_STATUS_PENDING, "Pending"),
+        (DLQ_STATUS_PROCESSED, "Processed"),
+        (DLQ_STATUS_FAILED, "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name="webhook_dlq_entries",
+    )
+    event_type = models.CharField(max_length=64)
+    payload = models.JSONField(default=dict)
+    error = models.TextField(blank=True, default="")
+    retry_count = models.IntegerField(default=0)
+    status = models.CharField(
+        max_length=16, choices=DLQ_STATUS_CHOICES, default=DLQ_STATUS_PENDING
+    )
+    correlation_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.event_type} [{self.status}] {self.organization_id}"

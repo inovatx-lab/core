@@ -1,6 +1,8 @@
 """Celery tasks for INOVATX Core.
 
 Task 3.2.1: Build Celery task for Moodle user creation.
+Task 3.2.2: Build Celery task for cohort creation and member assignment.
+Task 3.2.3: Add retry and error handling for Moodle API failures.
 """
 
 import logging
@@ -16,9 +18,14 @@ from core.models import (
     OrganizationMembershipRole,
     SubscriptionLicense,
     UserProfile,
+    WebhookDLQ,
 )
 
 logger = logging.getLogger(__name__)
+
+# Retry backoff intervals per Decision log D6: 5s, 15s, 45s, 2m, 6m
+RETRY_BACKOFF_INTERVALS = [5, 15, 45, 120, 360]
+MAX_RETRIES = 5
 
 
 def _moodle_api_url() -> str:
@@ -36,9 +43,71 @@ def _http_headers() -> dict[str, str]:
     }
 
 
+def _is_retryable_error(exc: Exception) -> bool:
+    """Determine if an error should trigger a retry vs dead-letter."""
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return True
+    if isinstance(exc, requests.exceptions.Timeout):
+        return True
+    if isinstance(exc, requests.exceptions.HTTPError):
+        response = exc.response
+        if response is not None:
+            status_code = response.status_code
+            # 5xx errors are retryable, 4xx are terminal (except 429)
+            if 500 <= status_code < 600:
+                return True
+            if status_code == 429:  # Too Many Requests
+                return True
+    return False
+
+
+def _exponential_backoff(retry_count: int) -> int:
+    """Return backoff interval in seconds for given retry count."""
+    if retry_count < len(RETRY_BACKOFF_INTERVALS):
+        return RETRY_BACKOFF_INTERVALS[retry_count]
+    return RETRY_BACKOFF_INTERVALS[-1] * (2 ** (retry_count - len(RETRY_BACKOFF_INTERVALS) + 1))
+
+
+def _dead_letter(
+    organization_id: str,
+    event_type: str,
+    payload: dict,
+    error: str,
+    correlation_id: str | None = None,
+) -> None:
+    """Write a terminal failure to the WebhookDLQ table."""
+    try:
+        org_uuid = uuid.UUID(organization_id)
+        org = Organization.objects.get(pk=org_uuid)
+        corr_uuid = None
+        if correlation_id:
+            try:
+                corr_uuid = uuid.UUID(correlation_id)
+            except (ValueError, TypeError):
+                pass
+        WebhookDLQ.objects.create(
+            organization=org,
+            event_type=event_type,
+            payload=payload,
+            error=error,
+            status="pending",
+            correlation_id=corr_uuid,
+        )
+    except Exception as dlq_exc:
+        logger.error("Failed to write to WebhookDLQ: %s", dlq_exc)
+
+
+def _moodle_request(method: str, endpoint: str, data: dict = None) -> dict | None:
+    """Make a Moodle API request and return the parsed JSON response."""
+    url = f"{_moodle_api_url()}/{endpoint}"
+    response = requests.request(method, url, data=data, headers=_http_headers(), timeout=30)
+    response.raise_for_status()
+    result = response.json()
+    return result if result else None
+
+
 def _create_moodle_user(payload: dict[str, Any]) -> int | None:
     """Call core_user_create_users and return the created user ID."""
-    url = f"{_moodle_api_url()}/core_user_create_users"
     data = {
         "users[0][username]": payload["username"],
         "users[0][password]": payload["password"],
@@ -49,17 +118,14 @@ def _create_moodle_user(payload: dict[str, Any]) -> int | None:
         "users[0][lang]": payload.get("lang", "en"),
         "users[0][timezone]": payload.get("timezone", "UTC"),
     }
-    response = requests.post(url, data=data, headers=_http_headers(), timeout=30)
-    response.raise_for_status()
-    users = response.json()
-    if not users:
-        return None
-    return users[0].get("id")
+    result = _moodle_request("post", "core_user_create_users", data)
+    if result:
+        return result[0].get("id")
+    return None
 
 
 def _create_moodle_cohort(payload: dict[str, Any]) -> int | None:
     """Call core_cohort_create_cohorts and return the created cohort ID."""
-    url = f"{_moodle_api_url()}/core_cohort_create_cohorts"
     data = {
         "cohorts[0][name]": payload["name"],
         "cohorts[0][contextlevel]": payload.get("contextlevel", "context"),
@@ -67,23 +133,19 @@ def _create_moodle_cohort(payload: dict[str, Any]) -> int | None:
         "cohorts[0][visible]": payload.get("visible", 1),
         "cohorts[0][description]": payload.get("description", ""),
     }
-    response = requests.post(url, data=data, headers=_http_headers(), timeout=30)
-    response.raise_for_status()
-    cohorts = response.json()
-    if not cohorts:
-        return None
-    return cohorts[0].get("id")
+    result = _moodle_request("post", "core_cohort_create_cohorts", data)
+    if result:
+        return result[0].get("id")
+    return None
 
 
 def _add_cohort_members(cohort_id: int, user_ids: list[int]) -> bool:
     """Call core_cohort_add_cohort_members."""
-    url = f"{_moodle_api_url()}/core_cohort_add_cohort_members"
     data = {}
     for i, uid in enumerate(user_ids):
         data[f"members[{i}][cohortid]"] = cohort_id
         data[f"members[{i}][userid]"] = uid
-    response = requests.post(url, data=data, headers=_http_headers(), timeout=30)
-    response.raise_for_status()
+    _moodle_request("post", "core_cohort_add_cohort_members", data)
     return True
 
 
@@ -92,7 +154,7 @@ def _enroll_individual_user(payload: dict[str, Any]) -> bool:
     return True
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=5)
+@shared_task(bind=True, max_retries=MAX_RETRIES)
 def provision_moodle_user(
     self,
     organization_id: str,
@@ -111,9 +173,12 @@ def provision_moodle_user(
     except (ValueError, TypeError):
         return {"status": "failed", "error": "invalid_uuid"}
 
-    org = Organization.objects.get(pk=org_uuid)
-    profile = UserProfile.objects.get(user=user_uuid, organization=org)
-    license_obj = SubscriptionLicense.objects.get(pk=license_uuid, organization=org)
+    try:
+        org = Organization.objects.get(pk=org_uuid)
+        profile = UserProfile.objects.get(user=user_uuid, organization=org)
+        license_obj = SubscriptionLicense.objects.get(pk=license_uuid, organization=org)
+    except (Organization.DoesNotExist, UserProfile.DoesNotExist, SubscriptionLicense.DoesNotExist):
+        return {"status": "failed", "error": "not_found"}
 
     role_codes = set(
         profile.role_assignments.values_list("role_code", flat=True)
@@ -130,7 +195,21 @@ def provision_moodle_user(
         "timezone": "UTC",
     }
 
-    moodle_user_id = _create_moodle_user(moodle_payload)
+    try:
+        moodle_user_id = _create_moodle_user(moodle_payload)
+    except Exception as exc:
+        if _is_retryable_error(exc) and self.request.retries < MAX_RETRIES:
+            retry_in = _exponential_backoff(self.request.retries)
+            raise self.retry(exc=exc, countdown=retry_in)
+        _dead_letter(
+            organization_id=str(org.id),
+            event_type="user_creation",
+            payload=moodle_payload,
+            error=str(exc),
+            correlation_id=correlation_id,
+        )
+        return {"status": "failed", "error": "user_creation_failed"}
+
     if moodle_user_id is None:
         return {"status": "failed", "error": "user_creation_failed"}
 
@@ -142,10 +221,36 @@ def provision_moodle_user(
             "visible": 1,
             "description": f"Provisioned for {org.name}",
         }
-        cohort_id = _create_moodle_cohort(cohort_payload)
+        try:
+            cohort_id = _create_moodle_cohort(cohort_payload)
+        except Exception as exc:
+            if _is_retryable_error(exc) and self.request.retries < MAX_RETRIES:
+                retry_in = _exponential_backoff(self.request.retries)
+                raise self.retry(exc=exc, countdown=retry_in)
+            _dead_letter(
+                organization_id=str(org.id),
+                event_type="cohort_creation",
+                payload=cohort_payload,
+                error=str(exc),
+                correlation_id=correlation_id,
+            )
+            return {"status": "failed", "error": "cohort_creation_failed"}
         if cohort_id is None:
             return {"status": "failed", "error": "cohort_creation_failed"}
-        _add_cohort_members(cohort_id, [moodle_user_id])
+        try:
+            _add_cohort_members(cohort_id, [moodle_user_id])
+        except Exception as exc:
+            if _is_retryable_error(exc) and self.request.retries < MAX_RETRIES:
+                retry_in = _exponential_backoff(self.request.retries)
+                raise self.retry(exc=exc, countdown=retry_in)
+            _dead_letter(
+                organization_id=str(org.id),
+                event_type="cohort_member_assignment",
+                payload={"cohort_id": cohort_id, "user_ids": [moodle_user_id]},
+                error=str(exc),
+                correlation_id=correlation_id,
+            )
+            return {"status": "failed", "error": "member_assignment_failed"}
         license_obj.moodle_cohort_id = str(cohort_id)
         license_obj.save()
     else:
@@ -161,7 +266,7 @@ def provision_moodle_user(
     }
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=5)
+@shared_task(bind=True, max_retries=MAX_RETRIES)
 def provision_moodle_cohort(
     self,
     organization_id: str,
@@ -180,7 +285,11 @@ def provision_moodle_cohort(
     except (ValueError, TypeError):
         return {"status": "failed", "error": "invalid_uuid"}
 
-    org = Organization.objects.get(pk=org_uuid)
+    try:
+        org = Organization.objects.get(pk=org_uuid)
+    except Organization.DoesNotExist:
+        return {"status": "failed", "error": "not_found"}
+
     if org.org_type == "individual":
         return {"status": "failed", "error": "individual_org_not_cohort"}
 
@@ -192,7 +301,10 @@ def provision_moodle_cohort(
     if len(profiles) != len(user_uuids):
         return {"status": "failed", "error": "user_membership_mismatch"}
 
-    license_obj = SubscriptionLicense.objects.get(pk=license_uuid, organization=org)
+    try:
+        license_obj = SubscriptionLicense.objects.get(pk=license_uuid, organization=org)
+    except SubscriptionLicense.DoesNotExist:
+        return {"status": "failed", "error": "not_found"}
 
     cohort_payload = {
         "name": f"{org.name} - Cohort",
@@ -201,12 +313,38 @@ def provision_moodle_cohort(
         "visible": 1,
         "description": f"Provisioned for {org.name}",
     }
-    cohort_id = _create_moodle_cohort(cohort_payload)
+    try:
+        cohort_id = _create_moodle_cohort(cohort_payload)
+    except Exception as exc:
+        if _is_retryable_error(exc) and self.request.retries < MAX_RETRIES:
+            retry_in = _exponential_backoff(self.request.retries)
+            raise self.retry(exc=exc, countdown=retry_in)
+        _dead_letter(
+            organization_id=str(org.id),
+            event_type="cohort_creation",
+            payload=cohort_payload,
+            error=str(exc),
+            correlation_id=correlation_id,
+        )
+        return {"status": "failed", "error": "cohort_creation_failed"}
     if cohort_id is None:
         return {"status": "failed", "error": "cohort_creation_failed"}
 
     user_ids_for_moodle = [p.user.id for p in profiles]
-    _add_cohort_members(cohort_id, user_ids_for_moodle)
+    try:
+        _add_cohort_members(cohort_id, user_ids_for_moodle)
+    except Exception as exc:
+        if _is_retryable_error(exc) and self.request.retries < MAX_RETRIES:
+            retry_in = _exponential_backoff(self.request.retries)
+            raise self.retry(exc=exc, countdown=retry_in)
+        _dead_letter(
+            organization_id=str(org.id),
+            event_type="cohort_member_assignment",
+            payload={"cohort_id": cohort_id, "user_ids": user_ids_for_moodle},
+            error=str(exc),
+            correlation_id=correlation_id,
+        )
+        return {"status": "failed", "error": "member_assignment_failed"}
 
     license_obj.moodle_cohort_id = str(cohort_id)
     license_obj.save()

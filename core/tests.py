@@ -22,6 +22,7 @@ from .models import (
     UserProfile,
 )
 from .tasks import provision_moodle_cohort, provision_moodle_user
+from .models import WebhookDLQ
 
 
 class CoreModelTests(TestCase):
@@ -1650,4 +1651,121 @@ class CoreCohortTaskTests(TestCase):
         )
         self.assertEqual(result.get()["status"], "failed")
         self.assertEqual(result.get()["error"], "user_membership_mismatch")
+
+
+class CoreRetryAndErrorHandlingTests(TestCase):
+    """Tests for Task 3.2.3: Retry and error handling for Moodle API failures."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="retry_user", password="test-password"
+        )
+        self.organization = Organization.objects.create(
+            name="Retry Test School",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.user,
+            organization=self.organization,
+            phone_number="+256700000400",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.profile, role_code=MembershipRoleCode.STUDENT
+        )
+        self.license = SubscriptionLicense.objects.create(
+            organization=self.organization,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=50,
+            status=LicenseStatus.ACTIVE,
+        )
+
+    def test_exponential_backoff_intervals(self):
+        """Backoff intervals match Decision log D6: 5s, 15s, 45s, 2m, 6m."""
+        expected = [5, 15, 45, 120, 360]
+        from core.tasks import RETRY_BACKOFF_INTERVALS
+        self.assertEqual(RETRY_BACKOFF_INTERVALS, expected)
+
+    def test_retryable_error_triggers_retry(self):
+        """ConnectionError triggers Celery retry with backoff."""
+        from unittest.mock import patch
+        from core.tasks import provision_moodle_user
+
+        with patch.object(provision_moodle_user, "retry") as mock_retry:
+            from requests.exceptions import ConnectionError
+            result = provision_moodle_user(
+                organization_id=str(self.organization.id),
+                user_id=str(self.user.id),
+                license_id=str(self.license.id),
+                correlation_id="test-correlation-id",
+            )
+            # task runs inline (delay not called), retry called if retryable
+            # With no actual Moodle endpoint, _moodle_request raises ConnectionError
+            # which should trigger retry
+            self.assertTrue(mock_retry.called)
+
+    def test_dead_letter_on_terminal_failure(self):
+        """Terminal 4xx error writes to WebhookDLQ."""
+        from unittest.mock import patch
+        from requests.exceptions import HTTPError
+
+        mock_response = type("Response", (), {"status_code": 400})()
+        http_error = HTTPError("Bad Request", response=mock_response)
+
+        with patch("core.tasks._moodle_request", side_effect=http_error):
+            result = provision_moodle_user.delay(
+                organization_id=str(self.organization.id),
+                user_id=str(self.user.id),
+                license_id=str(self.license.id),
+                correlation_id="test-correlation-id",
+            )
+            result.get()
+            dlq_entry = WebhookDLQ.objects.filter(
+                organization=self.organization,
+                event_type="user_creation",
+            ).first()
+            self.assertIsNotNone(dlq_entry)
+            self.assertEqual(dlq_entry.status, "pending")
+            self.assertIsNotNone(dlq_entry.correlation_id)
+
+    def test_dead_letter_retry_count_increments(self):
+        """DLQ entry records retry count on terminal failure."""
+        from unittest.mock import patch
+        from requests.exceptions import ConnectionError
+
+        with patch("core.tasks._moodle_request", side_effect=ConnectionError("Down")):
+            result = provision_moodle_user.delay(
+                organization_id=str(self.organization.id),
+                user_id=str(self.user.id),
+                license_id=str(self.license.id),
+            )
+            result.get()
+            dlq_entry = WebhookDLQ.objects.filter(
+                organization=self.organization,
+                event_type="user_creation",
+            ).first()
+            self.assertIsNotNone(dlq_entry)
+            self.assertEqual(dlq_entry.retry_count, 5)
+
+    def test_cohort_dead_letter_on_terminal_failure(self):
+        """Cohort task terminal failure writes to WebhookDLQ."""
+        from unittest.mock import patch
+        from requests.exceptions import HTTPError
+
+        mock_response = type("Response", (), {"status_code": 500})()
+        http_error = HTTPError("Server Error", response=mock_response)
+
+        with patch("core.tasks._moodle_request", side_effect=http_error):
+            result = provision_moodle_cohort.delay(
+                organization_id=str(self.organization.id),
+                user_ids=[str(self.user.id)],
+                license_id=str(self.license.id),
+            )
+            result.get()
+            dlq_entry = WebhookDLQ.objects.filter(
+                organization=self.organization,
+                event_type="cohort_creation",
+            ).first()
+            self.assertIsNotNone(dlq_entry)
+            self.assertEqual(dlq_entry.status, "pending")
 
