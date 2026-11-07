@@ -295,8 +295,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
   - Evidence: protocol mapping to PRD and UML
 - Task 3.1.3: Define JWT SSO contract and claims.
   - Deliverable: JWT specification
-  - Evidence: signed token payload and validation process
-
+  - Evidence: signed token payload (header/claims/payload structure) and validation process documented; user identity, cohort authorization, expiry claims defined; cross-tenant isolation rules documented; approved decisions referenced (PRD §4.1/FR-02, UML §2 BPMN, Decision log D6/D7/D8); integration with Tasks 3.1.1, 3.2.1, 3.2.3; no runtime implementation created. Completion review pending.
+  - Evidence location: `inovatx_context/inovatx_task_3_1_3_traceability.md`, `inovatx_context/inovatx_task_3_1_1_traceability.md`.
 ### Activity 3.2: Implement provisioning workers
 - Task 3.2.1: Build Celery task for Moodle user creation.
   - Deliverable: provisioning worker
