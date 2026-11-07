@@ -78,3 +78,21 @@ The AI interaction entitlement fields apply only to `AI_PRO`. The approved D17 l
 ## 7. Deferred behavior
 
 This taxonomy does not define role permissions, lifecycle transitions, payment statuses, renewal/history semantics, product-specific seat calculations, or AI allowance resets and pooling. Those decisions remain with the relevant roadmap tasks; no behavior should be inferred from an enum value alone.
+
+## 8. Future: Non-LMS Service Licenses
+
+**Planned (not implemented):** A separate `ServiceLicense` table is planned for non-educational service products (e.g., project management, event management, workflow management). This table will be distinct from `SubscriptionLicense` and will not contain LMS-specific fields such as `moodle_cohort_id` or AI interaction allowances.
+
+| Consideration | Decision |
+|---|---|
+| Separate table | `ServiceLicense` will be a separate table from `SubscriptionLicense` |
+| Product codes | New product codes (e.g., `PROJECT_MGMT`, `EVENT_MGMT`, `WORKFLOW_MGMT`) will be defined when the first non-LMS service client is onboarded |
+| `moodle_cohort_id` | Will NOT exist on `ServiceLicense` — Moodle cohort ID is LMS-specific |
+| `ai_*` fields | Will NOT exist on `ServiceLicense` — AI interaction allowances are LMS/AI-specific |
+| `seat_capacity` | Will exist but product-specific unit definitions remain undefined |
+| Unique constraint | `(organization_id, product_code)` — one license per product per org |
+| Permission boundaries | Org roles apply; system_admin does not bypass tenant isolation |
+
+**Rationale:** `SubscriptionLicense` is purpose-built for LMS/AI products. Cramming non-LMS services into it would create semantically meaningless fields (e.g., `moodle_cohort_id` on a project management license) and would prevent an organization from holding both a project management license and an event management license simultaneously (due to the unique `(organization_id, product_code)` constraint).
+
+**Status:** Deferred. Not implemented in Phase 1 or Phase 2. Will be implemented when the first non-LMS service client is onboarded.

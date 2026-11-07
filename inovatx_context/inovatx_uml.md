@@ -267,13 +267,22 @@ The ERD contains the entities and relationships explicitly described in the PRD.
         integer ai_daily_interaction_cap_per_learner_seat
         timestamp valid_until
     }
+
+    SERVICE_LICENSE {
+        uuid id PK
+        uuid organization_id FK
+        enum product_code "PROJECT_MGMT | EVENT_MGMT | WORKFLOW_MGMT | ..."
+        integer seat_capacity
+        enum status "pending | active | expired | suspended | cancelled"
+        timestamp valid_until
+    } # Future: not implemented. Separate table for non-LMS services. See inovatx_core_enum_taxonomy.md section 8.
 ```
 
 **Database and isolation constraints:** the PRD places Django application data in PostgreSQL database `inovatx_db` with RLS and Moodle data in `moodle_db`. Because a user may have memberships in multiple organizations, each tenant-scoped request explicitly selects an organization, establishes it as candidate transaction-local context, and performs only the authenticated-user/organization membership lookup under RLS before tenant business queries; the PRD's singular `request.user.userprofile.organization_id` example must not be implemented literally. The request transport is deferred to the Core API contract. User-originated worker tasks carry explicit organization and actor/membership context when applicable and revalidate membership and applicable authorization when executed; system/event-originated work carries explicit provenance. Neither requests nor workers may rely on ambient context. Validated context is applied using transaction-local `SET LOCAL` and is not retained in connection/session state. Missing, invalid, or unauthorized context must fail closed. The global `system_admin` role does not grant implicit tenant-data access or an all-tenant context; additional assistance access must be requested from the organization, while the access workflow remains undefined. Task 1.2.2 approves separate bootstrap, schema-owner, migrator, and runtime authorities and strict RLS across the four initial Core tenant tables; executable policies await the Django schema and PostgreSQL test environment. The custom GUC is not an independent defense against arbitrary SQL under a compromised runtime credential. The PRD's `student_data` and `inovatx_app_role` examples remain illustrative only; exact table and role identifiers are not selected. The `student_data` schema and relationship are not defined.
 
 **Resolved cardinality and schema baseline:** one auth user may have memberships in multiple organizations, with at most one `UserProfile` per `(user_id, organization_id)`. A membership may have multiple role assignments with a UUID primary key and uniqueness on `(user_profile_id, role_code)`. An organization may have multiple product licenses, with at most one initial license per `(organization_id, product_code)`. These cardinalities are recorded in the Task 1.1.1 decision log; Task 1.1.2 defines canonical values; the remaining initial schema plan is documented in `inovatx_initial_schema_migration_plan.md`. Task 1.2.2 records approved RLS role and policy design; executable implementation awaits the actual Django schema and PostgreSQL test environment.
 
-**Schema omissions, not added as requirements:** payments, invoices, renewals, refunds, parent-child links, branches, enrollment records, courses, quizzes, assessments, grades, AI interactions, token-usage ledger entries, audit events, and webhook deliveries. These may be necessary implementation entities, but the PRD does not specify them.
+**Schema omissions, not added as requirements:** payments, invoices, renewals, refunds, parent-child links, branches, enrollment records, courses, quizzes, assessments, grades, AI interactions, token-usage ledger entries, audit events, webhook deliveries, and `ServiceLicense` (non-LMS service licenses). These may be necessary implementation entities, but the PRD does not specify them.
 
 ## 6. Class Diagram: Code Structure
 
