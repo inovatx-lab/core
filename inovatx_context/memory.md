@@ -1,6 +1,6 @@
-# Memory — INOVATX Phase 3 Activity 3.1 Task 3.1.1
+# Memory — INOVATX Phase 3 Activity 3.1 Tasks 3.1.1–3.1.3
 
-Last updated: 2026-10-31
+Last updated: 2026-11-07
 
 ## What was built
 
@@ -54,16 +54,18 @@ Last updated: 2026-10-31
 - Phase 2 fully complete (2.1.1 through 2.3.3)
 - Phase 3 authorized (Tasks 3.1.1–3.3.3)
 - Task 3.1.1 complete — Moodle user provisioning contract documented
+- Task 3.1.2 complete — Moodle cohort creation and member assignment logic documented
+- Task 3.1.3 complete — JWT SSO contract and claims documented
 - All work committed and pushed to `feature/T1.3.3` (commit `430cdc2`)
 - Django dev server running at `http://127.0.0.1:8000`
 
 ## Next session starts with
 
-Task 3.1.2 — Define Moodle cohort creation and member assignment logic, OR Task 3.2.1 — Build Celery task for Moodle user creation (depending on which Activity 3.x task to tackle first).
+Task 3.2.1 — Build Celery task for Moodle user creation, OR Task 3.3.1 — Build SSO token generation in Django (depending on which Activity 3.x task to tackle first).
 
 ## Open questions
 
 - Exact cohort naming convention for institutional orgs (deferred to Task 3.2.2)
 - Standard course group ID for individual enrollments (deferred to Task 3.2.2)
-- Webhook signature verification for Moodle → Django grade sync (deferred to Task 3.2.3)
+- JWT SSO contract and claims details (deferred to Task 3.1.3)
 - Task 1.2.2 RLS implementation still blocked on Django schema and PostgreSQL test environment
