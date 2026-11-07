@@ -288,6 +288,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
 - Task 3.1.1: Define Moodle user provisioning contract.
   - Deliverable: user creation payload and sync contract
   - Evidence: documented API interaction map
+  - Status: Complete; Moodle provisioning contract documented in `inovatx_context/inovatx_moodle_provisioning_contract.md` with Moodle API endpoints (`core_user_create_users`, `core_cohort_create_cohorts`, `core_cohort_add_cohort_members`), payload schema, institutional vs individual org type branching, idempotency/retry policy (max 5 retries, exponential backoff, DLQ per Decision log D6), idempotency TTL 24 hours (D7), error semantics per P1.2.3-D1/D2. No runtime implementation created. Completion review pending.
+  - Evidence location: `inovatx_context/inovatx_moodle_provisioning_contract.md`, `inovatx_context/inovatx_task_3_1_1_traceability.md`.
 - Task 3.1.2: Define cohort creation and member assignment logic.
   - Deliverable: cohort sync specification
   - Evidence: protocol mapping to PRD and UML

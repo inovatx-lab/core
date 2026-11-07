@@ -43,6 +43,7 @@ INOVEXA/
     ├── inovatx_individual_registration_flow.md # Task 2.3.1 individual registration flow
     ├── inovatx_institutional_registration_flow.md # Task 2.3.2 institutional registration flow
     ├── inovatx_parent_child_mapping.md # Task 2.3.3 parent-child mapping
+    ├── inovatx_moodle_provisioning_contract.md # Task 3.1.1 Moodle user provisioning contract
     ├── inovatx_tenant_membership_rules.md     # Task 2.1.2 tenant-scoped membership rules
     ├── inovatx_initial_schema_migration_plan.md
     ├── inovatx_phase0_exit_review.md
@@ -77,6 +78,7 @@ INOVEXA/
     ├── inovatx_task_2_3_1_traceability.md
     ├── inovatx_task_2_3_2_traceability.md
     ├── inovatx_task_2_3_3_traceability.md
+    ├── inovatx_task_3_1_1_traceability.md
     ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
