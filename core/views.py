@@ -1,10 +1,15 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.contrib import messages
 from django.http import JsonResponse
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils.decorators import method_decorator
+from functools import wraps
 
 from .models import (
     Organization,
@@ -23,6 +28,10 @@ from .permissions import (
     require_permission,
     _error_response,
     _extract_correlation_id,
+    _extract_organization_id,
+    _validate_membership,
+    _is_system_admin,
+    ROLE_PERMISSIONS,
 )
 
 
@@ -1203,3 +1212,834 @@ def individual_register(request):
         },
         status=201,
     )
+
+
+# ---------------------------------------------------------------- Template UI views
+
+def _extract_org_id(request):
+    """Read org id from header, POST body, or GET query param."""
+    if "HTTP_X_INOVATX_ORGANIZATION_ID" in request.META:
+        return request.META["HTTP_X_INOVATX_ORGANIZATION_ID"]
+    if request.method == "POST":
+        return request.POST.get("org_id")
+    return request.GET.get("org")
+
+
+def ensure_org_header(view_func):
+    """Outermost decorator: copy org id from POST/GET into META header
+    so require_tenant_context can read it for template-rendered views.
+    If no org id is provided and the user has memberships, redirect to
+    ?org=<first_org> so the page loads with a valid tenant context."""
+    @wraps(view_func)
+    def wrapped(request, *args, **kwargs):
+        org_id = _extract_org_id(request)
+        if org_id and "HTTP_X_INOVATX_ORGANIZATION_ID" not in request.META:
+            request.META["HTTP_X_INOVATX_ORGANIZATION_ID"] = org_id
+        elif not org_id and request.user.is_authenticated:
+            orgs = (
+                request.user.organization_memberships.select_related("organization").all()
+            )
+            if orgs:
+                return redirect(f"{request.path}?org={orgs[0].organization.id}")
+        return view_func(request, *args, **kwargs)
+    return wrapped
+
+
+def _role_label(role_code):
+    labels = {
+        "org_admin": "Org Admin",
+        "instructor": "Instructor",
+        "student": "Student",
+        "parent": "Parent",
+        "sme_staff": "SME Staff",
+    }
+    return labels.get(role_code, role_code)
+
+
+def _status_badge_class(status):
+    classes = {
+        "pending": "badge-pending",
+        "active": "badge-active",
+        "suspended": "badge-suspended",
+        "expired": "badge-expired",
+        "cancelled": "badge-cancelled",
+    }
+    return classes.get(status, "badge-cancelled")
+
+
+# ---------------------------------------------------------------- Dashboard
+
+@require_http_methods(["GET"])
+@ensure_org_header
+def ui_dashboard(request):
+    if not request.user.is_authenticated:
+        return redirect("ui-login")
+
+    org_id_raw = _extract_organization_id(request)
+    if org_id_raw is None:
+        orgs = (
+            request.user.organization_memberships.select_related("organization").all()
+        )
+        if not orgs:
+            messages.info(request, "No organizations found. Contact an administrator.")
+            return render(request, "dashboard.html", {"orgs": [], "org_id": None})
+        return redirect(f"{request.path}?org={orgs[0].organization.id}")
+    if org_id_raw == "malformed":
+        messages.error(request, "Invalid organization selector.")
+        return redirect("ui-dashboard")
+
+    try:
+        organization = Organization.objects.get(pk=org_id_raw)
+    except Organization.DoesNotExist:
+        messages.error(request, "Organization not found.")
+        return redirect("ui-dashboard")
+
+    user_profile = _validate_membership(request.user, organization.id)
+    if user_profile is None:
+        messages.error(request, "You are not a member of this organization.")
+        return redirect("ui-dashboard")
+
+    is_system_admin = _is_system_admin(request.user)
+
+    if not is_system_admin and not _user_has_permission_from_ctx_manual(
+        user_profile, "Organization", "view"
+    ):
+        messages.error(request, "You do not have permission to view this organization.")
+        return redirect("ui-login")
+
+    profiles = UserProfile.objects.filter(organization=organization).select_related("user")
+    roles = OrganizationMembershipRole.objects.filter(user_profile__organization=organization)
+    licenses = SubscriptionLicense.objects.filter(organization=organization)
+
+    license_record = licenses.first()
+    license_status = license_record.status if license_record else None
+
+    recent_profiles = profiles.order_by("-created_at")[:5]
+
+    can_create_license = is_system_admin or _user_has_permission_from_ctx_manual(
+        user_profile, "SubscriptionLicense", "create"
+    )
+    can_create_org = is_system_admin or _user_has_permission_from_ctx_manual(
+        user_profile, "Organization", "create"
+    )
+
+    context = {
+        "organization": organization,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "profile_count": profiles.count(),
+        "role_count": roles.count(),
+        "license_count": licenses.count(),
+        "license_status": license_status,
+        "license_status_class": _status_badge_class(license_status) if license_status else None,
+        "licenses": licenses,
+        "recent_profiles": recent_profiles,
+        "can_create_license": can_create_license,
+        "can_create_org": can_create_org,
+        "org_id": str(organization.id),
+    }
+    return render(request, "dashboard.html", context)
+
+
+def _user_has_permission_from_ctx_manual(user_profile, resource, action):
+    if user_profile is None:
+        return False
+    role_codes = set(
+        user_profile.role_assignments.values_list("role_code", flat=True)
+    )
+    for role_code in role_codes:
+        perms = ROLE_PERMISSIONS.get(role_code, {})
+        allowed_actions = perms.get(resource, set())
+        if action in allowed_actions:
+            return True
+    return False
+
+
+# ---------------------------------------------------------------- Organizations
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("Organization", "view")
+def ui_organization_list(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    if request.method == "POST":
+        if not is_system_admin and not _user_has_permission_from_ctx(
+            ctx, "Organization", "create"
+        ):
+            messages.error(request, "You do not have permission to create organizations.")
+            return redirect("ui-organization-list")
+
+        name = request.POST.get("name")
+        org_type = request.POST.get("org_type")
+        status = request.POST.get("status")
+
+        if not name or not org_type or not status:
+            messages.error(request, "Name, organization type, and status are required.")
+            return redirect("ui-organization-list")
+
+        try:
+            Organization.objects.create(name=name, org_type=org_type, status=status)
+            messages.success(request, "Organization created successfully.")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Failed to create organization: {exc}")
+
+        return redirect("ui-organization-list")
+
+    orgs = Organization.objects.all() if is_system_admin else Organization.objects.filter(id=org.id)
+    can_create = is_system_admin or _user_has_permission_from_ctx(ctx, "Organization", "create")
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "orgs": orgs,
+        "can_create": can_create,
+        "org_id": str(org.id),
+    }
+    return render(request, "organizations/list.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("Organization", "view")
+def ui_organization_detail(request, organization_id):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    try:
+        target = Organization.objects.get(pk=organization_id)
+    except Organization.DoesNotExist:
+        messages.error(request, "Organization not found.")
+        return redirect("ui-organization-list")
+
+    if str(target.id) != str(org.id) and not is_system_admin:
+        messages.error(request, "Access to another organization is denied.")
+        return redirect("ui-organization-list")
+
+    if request.method == "POST":
+        _method = request.POST.get("_method", "").upper()
+        if _method == "DELETE":
+            if not is_system_admin:
+                messages.error(request, "Only system administrators can delete organizations.")
+                return redirect("ui-organization-detail", organization_id=organization_id)
+            target.delete()
+            messages.success(request, "Organization deleted successfully.")
+            return redirect("ui-organization-list")
+
+        if not is_system_admin and not _user_has_permission_from_ctx(ctx, "Organization", "update"):
+            messages.error(request, "You do not have permission to update this organization.")
+            return redirect("ui-organization-detail", organization_id=organization_id)
+
+        name = request.POST.get("name")
+        org_type = request.POST.get("org_type")
+        status = request.POST.get("status")
+
+        if name:
+            target.name = name
+        if org_type:
+            target.org_type = org_type
+        if status:
+            target.status = status
+
+        try:
+            target.full_clean()
+            target.save()
+            messages.success(request, "Organization updated successfully.")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Failed to update organization: {exc}")
+
+        return redirect("ui-organization-detail", organization_id=organization_id)
+
+    can_update = is_system_admin or _user_has_permission_from_ctx(ctx, "Organization", "update")
+    can_delete = is_system_admin
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "org": target,
+        "can_update": can_update,
+        "can_delete": can_delete,
+        "org_id": str(org.id),
+        "org_types": OrganizationType.choices,
+        "statuses": OrganizationStatus.choices,
+    }
+    return render(request, "organizations/detail.html", context)
+
+
+# ---------------------------------------------------------------- Profiles
+
+@require_http_methods(["GET"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("UserProfile", "view")
+def ui_profile_list(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    profiles = (
+        UserProfile.objects.filter(organization=org)
+        .select_related("user")
+        .prefetch_related("role_assignments")
+    )
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "profiles": profiles,
+        "org_id": str(org.id),
+    }
+    return render(request, "profiles/list.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("UserProfile", "view")
+def ui_profile_create(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    if not is_system_admin and not _user_has_permission_from_ctx(ctx, "UserProfile", "create"):
+        messages.error(request, "You do not have permission to create profiles.")
+        return redirect("ui-profile-list")
+
+    User = get_user_model()
+
+    if request.method == "POST":
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+        phone_number = request.POST.get("phone_number")
+
+        if not username or not password or not phone_number:
+            messages.error(request, "Username, password, and phone number are required.")
+            return redirect("ui-profile-create")
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return redirect("ui-profile-create")
+
+        if email and User.objects.filter(email=email).exists():
+            messages.error(request, "Email already registered.")
+            return redirect("ui-profile-create")
+
+        try:
+            auth_user = User.objects.create_user(username=username, email=email, password=password)
+            profile = UserProfile.objects.create(
+                user=auth_user, organization=org, phone_number=phone_number,
+            )
+            messages.success(request, f"Profile created for {username}.")
+            return redirect("ui-profile-list")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Failed to create profile: {exc}")
+            return redirect("ui-profile-create")
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "org_id": str(org.id),
+    }
+    return render(request, "profiles/create.html", context)
+
+
+# ---------------------------------------------------------------- Roles
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("OrganizationMembershipRole", "view")
+def ui_role_create(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    if not is_system_admin and not _user_has_permission_from_ctx(
+        ctx, "OrganizationMembershipRole", "create"
+    ):
+        messages.error(request, "You do not have permission to assign roles.")
+        return redirect("ui-profile-list")
+
+    profiles = UserProfile.objects.filter(organization=org).select_related("user")
+    role_codes = MembershipRoleCode.choices
+
+    if request.method == "POST":
+        user_profile_id = request.POST.get("user_profile")
+        role_code = request.POST.get("role_code")
+
+        if not user_profile_id or not role_code:
+            messages.error(request, "Profile and role are required.")
+            return redirect("ui-role-create")
+
+        try:
+            target_profile = UserProfile.objects.get(pk=user_profile_id, organization=org)
+        except UserProfile.DoesNotExist:
+            messages.error(request, "Profile not found in this organization.")
+            return redirect("ui-role-create")
+
+        try:
+            OrganizationMembershipRole.objects.create(
+                user_profile=target_profile, role_code=role_code,
+            )
+            messages.success(request, f"Role {role_code} assigned.")
+            return redirect("ui-profile-list")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Failed to assign role: {exc}")
+            return redirect("ui-role-create")
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "profiles": profiles,
+        "role_codes": role_codes,
+        "org_id": str(org.id),
+    }
+    return render(request, "roles/create.html", context)
+
+
+# ---------------------------------------------------------------- Licenses
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("SubscriptionLicense", "view")
+def ui_license_list(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    if request.method == "POST":
+        if not is_system_admin and not _user_has_permission_from_ctx(
+            ctx, "SubscriptionLicense", "create"
+        ):
+            messages.error(request, "You do not have permission to create licenses.")
+            return redirect("ui-license-list")
+
+        product_code = request.POST.get("product_code")
+        seat_capacity = request.POST.get("seat_capacity")
+        status = request.POST.get("status")
+        moodle_cohort_id = request.POST.get("moodle_cohort_id") or None
+        ai_monthly = request.POST.get("ai_monthly_interaction_allowance_per_learner_seat") or None
+        ai_daily = request.POST.get("ai_daily_interaction_cap_per_learner_seat") or None
+        valid_until = request.POST.get("valid_until") or None
+
+        if not product_code or not seat_capacity or not status:
+            messages.error(request, "Product code, seat capacity, and status are required.")
+            return redirect("ui-license-list")
+
+        try:
+            seat_capacity = int(seat_capacity)
+        except (TypeError, ValueError):
+            messages.error(request, "Seat capacity must be a number.")
+            return redirect("ui-license-list")
+
+        try:
+            SubscriptionLicense.objects.create(
+                organization=org,
+                product_code=product_code,
+                seat_capacity=seat_capacity,
+                status=status,
+                moodle_cohort_id=moodle_cohort_id,
+                ai_monthly_interaction_allowance_per_learner_seat=int(ai_monthly) if ai_monthly else None,
+                ai_daily_interaction_cap_per_learner_seat=int(ai_daily) if ai_daily else None,
+                valid_until=valid_until,
+            )
+            messages.success(request, "License created successfully.")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Failed to create license: {exc}")
+
+        return redirect("ui-license-list")
+
+    licenses = SubscriptionLicense.objects.filter(organization=org)
+    can_create = is_system_admin or _user_has_permission_from_ctx(ctx, "SubscriptionLicense", "create")
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "licenses": licenses,
+        "can_create": can_create,
+        "product_codes": SubscriptionProductCode.choices,
+        "statuses": LicenseStatus.choices,
+        "org_id": str(org.id),
+    }
+    return render(request, "licenses/list.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("SubscriptionLicense", "view")
+def ui_license_detail(request, license_id):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    try:
+        license_record = SubscriptionLicense.objects.get(pk=license_id, organization=org)
+    except SubscriptionLicense.DoesNotExist:
+        messages.error(request, "License not found.")
+        return redirect("ui-license-list")
+
+    if request.method == "POST":
+        _method = request.POST.get("_method", "").upper()
+        if _method == "DELETE":
+            if not is_system_admin:
+                messages.error(request, "Only system administrators can delete licenses.")
+                return redirect("ui-license-detail", license_id=license_id)
+            license_record.delete()
+            messages.success(request, "License deleted successfully.")
+            return redirect("ui-license-list")
+
+        if not is_system_admin and not _user_has_permission_from_ctx(
+            ctx, "SubscriptionLicense", "update"
+        ):
+            messages.error(request, "You do not have permission to update this license.")
+            return redirect("ui-license-detail", license_id=license_id)
+
+        product_code = request.POST.get("product_code")
+        seat_capacity = request.POST.get("seat_capacity")
+        status = request.POST.get("status")
+        moodle_cohort_id = request.POST.get("moodle_cohort_id") or None
+        ai_monthly = request.POST.get("ai_monthly_interaction_allowance_per_learner_seat") or None
+        ai_daily = request.POST.get("ai_daily_interaction_cap_per_learner_seat") or None
+        valid_until = request.POST.get("valid_until") or None
+
+        if product_code:
+            license_record.product_code = product_code
+        if seat_capacity:
+            try:
+                license_record.seat_capacity = int(seat_capacity)
+            except (TypeError, ValueError):
+                messages.error(request, "Seat capacity must be a number.")
+                return redirect("ui-license-detail", license_id=license_id)
+        if status:
+            license_record.status = status
+        license_record.moodle_cohort_id = moodle_cohort_id
+        license_record.ai_monthly_interaction_allowance_per_learner_seat = (
+            int(ai_monthly) if ai_monthly else None
+        )
+        license_record.ai_daily_interaction_cap_per_learner_seat = (
+            int(ai_daily) if ai_daily else None
+        )
+        license_record.valid_until = valid_until
+
+        try:
+            license_record.full_clean()
+            license_record.save()
+            messages.success(request, "License updated successfully.")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Failed to update license: {exc}")
+
+        return redirect("ui-license-detail", license_id=license_id)
+
+    can_update = is_system_admin or _user_has_permission_from_ctx(ctx, "SubscriptionLicense", "update")
+    can_delete = is_system_admin
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "license": license_record,
+        "can_update": can_update,
+        "can_delete": can_delete,
+        "product_codes": SubscriptionProductCode.choices,
+        "statuses": LicenseStatus.choices,
+        "org_id": str(org.id),
+    }
+    return render(request, "licenses/detail.html", context)
+
+
+# ---------------------------------------------------------------- Parent-Child
+
+@require_http_methods(["GET"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("ParentChildLink", "view")
+def ui_parent_child_list(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    if is_system_admin or ctx["user_profile"].role_assignments.filter(role_code="parent").exists():
+        links = (
+            ParentChildLink.objects.filter(parent_profile=user_profile)
+            .select_related("child_profile", "child_profile__user")
+        )
+    else:
+        links = (
+            ParentChildLink.objects.filter(child_profile=user_profile)
+            .select_related("parent_profile", "parent_profile__user")
+        )
+
+    profiles = UserProfile.objects.filter(organization=org).select_related("user")
+    can_create = is_system_admin or _user_has_permission_from_ctx(
+        ctx, "ParentChildLink", "create"
+    )
+    can_delete = is_system_admin or _user_has_permission_from_ctx(
+        ctx, "ParentChildLink", "delete"
+    )
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "links": links,
+        "profiles": profiles,
+        "can_create": can_create,
+        "can_delete": can_delete,
+        "org_id": str(org.id),
+    }
+    return render(request, "parent-children/list.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("ParentChildLink", "create")
+def ui_parent_child_create(request):
+    ctx = request.tenant_context
+    org = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    profiles = UserProfile.objects.filter(organization=org).select_related("user")
+
+    if request.method == "POST":
+        child_profile_id = request.POST.get("child_profile_id")
+
+        if not child_profile_id:
+            messages.error(request, "Child profile is required.")
+            return redirect("ui-parent-child-create")
+
+        try:
+            child_profile = UserProfile.objects.get(
+                pk=child_profile_id, organization=org,
+            )
+        except UserProfile.DoesNotExist:
+            messages.error(request, "Child profile not found in this organization.")
+            return redirect("ui-parent-child-create")
+
+        if str(child_profile.id) == str(user_profile.id):
+            messages.error(request, "You cannot link to yourself.")
+            return redirect("ui-parent-child-create")
+
+        try:
+            ParentChildLink.objects.create(
+                parent_profile=user_profile, child_profile=child_profile,
+            )
+            messages.success(request, "Parent-child link created.")
+            return redirect("ui-parent-child-list")
+        except IntegrityError:
+            messages.error(request, "This link already exists.")
+            return redirect("ui-parent-child-create")
+
+    context = {
+        "organization": org,
+        "user_profile": user_profile,
+        "is_system_admin": is_system_admin,
+        "profiles": profiles,
+        "org_id": str(org.id),
+    }
+    return render(request, "parent-children/create.html", context)
+
+
+@require_http_methods(["POST"])
+@ensure_org_header
+@require_tenant_context
+@require_permission("ParentChildLink", "delete")
+def ui_parent_child_delete(request, link_id):
+    ctx = request.tenant_context
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    try:
+        if is_system_admin:
+            link = ParentChildLink.objects.get(pk=link_id)
+        else:
+            link = ParentChildLink.objects.get(pk=link_id, parent_profile=user_profile)
+    except ParentChildLink.DoesNotExist:
+        messages.error(request, "Link not found.")
+        return redirect("ui-parent-child-list")
+
+    link.delete()
+    messages.success(request, "Parent-child link deleted.")
+    return redirect("ui-parent-child-list")
+
+
+# ---------------------------------------------------------------- Login / Logout
+
+@require_http_methods(["GET", "POST"])
+def ui_login(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        from django.contrib.auth import authenticate, login as auth_login
+        user = authenticate(request, username=username, password=password)
+        if user:
+            auth_login(request, user)
+            next_url = request.POST.get("next") or "ui-dashboard"
+            return redirect(next_url)
+        messages.error(request, "Invalid username or password.")
+    return render(request, "registration/login.html")
+
+
+@require_http_methods(["GET", "POST"])
+def ui_logout(request):
+    from django.contrib.auth import logout as auth_logout
+    auth_logout(request)
+    request.session.flush()
+    messages.success(request, "You have been signed out.")
+    return redirect("ui-login")
+
+
+# ---------------------------------------------------------------- Registration
+
+@require_http_methods(["GET", "POST"])
+def ui_register_individual(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        email = request.POST.get("email")
+        phone_number = request.POST.get("phone_number")
+        org_name = request.POST.get("organization_name")
+
+        if not username or not password or not email or not phone_number or not org_name:
+            messages.error(request, "All fields are required.")
+            return render(request, "registration/individual.html")
+
+        User = get_user_model()
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return render(request, "registration/individual.html")
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Email already registered.")
+            return render(request, "registration/individual.html")
+
+        try:
+            with transaction.atomic():
+                auth_user = User.objects.create_user(
+                    username=username, email=email, password=password,
+                )
+                organization = Organization.objects.create(
+                    name=org_name, org_type=OrganizationType.INDIVIDUAL,
+                    status=OrganizationStatus.PENDING,
+                )
+                profile = UserProfile.objects.create(
+                    user=auth_user, organization=organization, phone_number=phone_number,
+                )
+                OrganizationMembershipRole.objects.create(
+                    user_profile=profile, role_code=MembershipRoleCode.ORG_ADMIN,
+                )
+                SubscriptionLicense.objects.create(
+                    organization=organization,
+                    product_code=SubscriptionProductCode.EDTECH_LMS,
+                    seat_capacity=1,
+                    status=LicenseStatus.PENDING,
+                )
+            messages.success(request, "Account created successfully. Please sign in.")
+            return redirect("ui-login")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Registration failed: {exc}")
+
+    return render(request, "registration/individual.html")
+
+
+@require_http_methods(["GET", "POST"])
+def ui_register_institutional(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        email = request.POST.get("email")
+        phone_number = request.POST.get("phone_number")
+        org_name = request.POST.get("organization_name")
+        org_type = request.POST.get("organization_type")
+        seat_capacity = request.POST.get("seat_capacity", 50)
+
+        if not username or not password or not email or not phone_number or not org_name or not org_type:
+            messages.error(request, "All fields are required.")
+            return render(request, "registration/institutional.html")
+
+        institutional_types = {
+            OrganizationType.SCHOOL, OrganizationType.SME,
+            OrganizationType.NGO, OrganizationType.ENTERPRISE,
+        }
+        if org_type not in institutional_types:
+            messages.error(request, "Invalid organization type.")
+            return render(request, "registration/institutional.html")
+
+        User = get_user_model()
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return render(request, "registration/institutional.html")
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Email already registered.")
+            return render(request, "registration/institutional.html")
+
+        try:
+            seat_capacity = int(seat_capacity)
+        except (TypeError, ValueError):
+            seat_capacity = 50
+
+        try:
+            with transaction.atomic():
+                auth_user = User.objects.create_user(
+                    username=username, email=email, password=password,
+                )
+                organization = Organization.objects.create(
+                    name=org_name, org_type=org_type, status=OrganizationStatus.PENDING,
+                )
+                profile = UserProfile.objects.create(
+                    user=auth_user, organization=organization, phone_number=phone_number,
+                )
+                OrganizationMembershipRole.objects.create(
+                    user_profile=profile, role_code=MembershipRoleCode.ORG_ADMIN,
+                )
+                SubscriptionLicense.objects.create(
+                    organization=organization,
+                    product_code=SubscriptionProductCode.EDTECH_LMS,
+                    seat_capacity=seat_capacity,
+                    status=LicenseStatus.PENDING,
+                )
+            messages.success(request, "Institutional account created successfully. Please sign in.")
+            return redirect("ui-login")
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, f"Registration failed: {exc}")
+
+    return render(request, "registration/institutional.html")
+
+
+def _user_has_permission_from_ctx(ctx, resource, action):
+    if ctx.get("is_system_admin"):
+        return True
+    user_profile = ctx.get("user_profile")
+    if user_profile is None:
+        return False
+    role_codes = set(
+        user_profile.role_assignments.values_list("role_code", flat=True)
+    )
+    for role_code in role_codes:
+        perms = ROLE_PERMISSIONS.get(role_code, {})
+        allowed_actions = perms.get(resource, set())
+        if action in allowed_actions:
+            return True
+    return False

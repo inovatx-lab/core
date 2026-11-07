@@ -107,4 +107,40 @@ urlpatterns = [
         views.parent_child_delete,
         name="parent-child-delete",
     ),
+    # ---------------------------------------------------------------- Template UI routes
+    path("", views.ui_dashboard, name="ui-dashboard"),
+    path("login/", views.ui_login, name="ui-login"),
+    path("logout/", views.ui_logout, name="ui-logout"),
+    path("register/", views.ui_register_individual, name="ui-register-individual"),
+    path(
+        "register/institutional/",
+        views.ui_register_institutional,
+        name="ui-register-institutional",
+    ),
+    path("organizations/", views.ui_organization_list, name="ui-organization-list"),
+    path(
+        "organizations/<uuid:organization_id>/",
+        views.ui_organization_detail,
+        name="ui-organization-detail",
+    ),
+    path("profiles/", views.ui_profile_list, name="ui-profile-list"),
+    path("profiles/create/", views.ui_profile_create, name="ui-profile-create"),
+    path("roles/create/", views.ui_role_create, name="ui-role-create"),
+    path("licenses/", views.ui_license_list, name="ui-license-list"),
+    path(
+        "licenses/<uuid:license_id>/",
+        views.ui_license_detail,
+        name="ui-license-detail",
+    ),
+    path("parent-children/", views.ui_parent_child_list, name="ui-parent-child-list"),
+    path(
+        "parent-children/create/",
+        views.ui_parent_child_create,
+        name="ui-parent-child-create",
+    ),
+    path(
+        "parent-children/<uuid:link_id>/delete/",
+        views.ui_parent_child_delete,
+        name="ui-parent-child-delete",
+    ),
 ]
