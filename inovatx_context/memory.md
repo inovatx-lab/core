@@ -1,53 +1,28 @@
-# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.3
+# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.3, Activity 3.3 Task 3.3.1
 
 Last updated: 2026-11-07
 
 ## What was built
 
-### Phase 3 Activity 3.2 Task 3.2.3 — Add Retry and Error Handling for Moodle API Failures
-- Added `WebhookDLQ` model to `core/models.py`:
-  - Dead-letter queue for Moodle API events that fail after max retries
-  - Cross-tenant isolation via organization_id FK
-  - Status tracking: pending/processed/failed
-  - Correlation ID propagation
-- Updated `core/tasks.py` — Retry and error handling:
-  - Exponential backoff intervals per Decision log D6: 5s, 15s, 45s, 2m, 6m
-  - `_is_retryable_error` classifies retryable (connection errors, 5xx, 429) vs terminal (4xx) errors
-  - `provision_moodle_user` and `provision_moodle_cohort` retry on retryable errors, write to DLQ on terminal failure
-  - Correlation ID propagated through retry/dead-letter flow
-- Added `core/tests.py` — CoreRetryAndErrorHandlingTests (6 tests: backoff intervals, retryable error retry, dead-letter creation, retry count increment, cohort DLQ)
+### Phase 3 Activity 3.3 Task 3.3.1 — Build SSO Token Generation in Django
+- Created `POST /api/v1/sso/token/` endpoint in `core/views.py`:
+  - Issues signed JWT (HS256) with claims: `sub`, `user_id`, `organization_id`, `cohort_ids`, `roles`, `iss`, `iat`, `exp`, `aud`
+  - Requires tenant context, valid membership, and active EDTECH_LMS license
+  - Rejects system_admin (not provisioned to Moodle)
+  - Rejects inactive/missing license with 403
+  - Correlation ID support per P1.2.3-D1
+  - Uses JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE, JWT_EXPIRATION_DELTA_SECONDS settings
+- Added JWT settings to `config/base_settings.py`
+- Added PyJWT>=2.8,<3 to `requirements.txt`
+- Added URL route `api/v1/sso/token/` in `config/urls.py`
+- Added `CoreSSOTokenIssuanceTests` (4 tests: success, unauthenticated, inactive license, no license)
+- Created `inovatx_context/inovatx_task_3_3_1_traceability.md` — traceability record
+- System check passes (0 issues)
 
-### Phase 3 Activity 3.2 Task 3.2.2 — Build Celery Task for Cohort Creation and Member Assignment
-- Added `provision_moodle_cohort` Celery task to `core/tasks.py`:
-  - Takes organization_id, user_ids (list), license_id, correlation_id as input
-  - Rejects individual org types (cohort provisioning is institutional only)
-  - Creates Moodle cohort via `core_cohort_create_cohorts`
-  - Adds members via `core_cohort_add_cohort_members`
-  - Updates `SubscriptionLicense.moodle_cohort_id` on success
-  - Validates user membership in organization
-  - Retry policy: max 5 retries, exponential backoff (Decision log D6)
-  - Idempotency key per-endpoint with 24-hour TTL (Decision log D7)
-  - Dead-letter queue on terminal failure (Decision log D6)
-  - Error semantics per P1.2.3-D1/D2
-- Added `core/tests.py` — CoreCohortTaskTests (4 tests: invalid UUID, missing org, individual org rejection, user membership mismatch)
-
-### Phase 3 Activity 3.2 Task 3.2.1 — Build Celery Task for Moodle User Creation
-- Created `core/tasks.py` — Celery task `provision_moodle_user`:
-  - Takes organization_id, user_id, license_id, correlation_id as input
-  - Creates Moodle user via `core_user_create_users`
-  - Institutional org types: create cohort via `core_cohort_create_cohorts` + add members via `core_cohort_add_cohort_members`
-  - Individual org types: enroll in standard course group (deferred to Task 3.2.2)
-  - Retry policy: max 5 retries, exponential backoff (Decision log D6)
-  - Idempotency key per-endpoint with 24-hour TTL (Decision log D7)
-  - Dead-letter queue on terminal failure (Decision log D6)
-  - Error semantics per P1.2.3-D1/D2
-- Created `core/celery.py` — Celery app configuration
-- Updated `config/base_settings.py` — Added CELERY_* and MOODLE_* settings; fixed context_processor paths
-- Updated `requirements.txt` — Added celery>=5.4,<6 and redis>=5,<6
-- Added `core/tests.py` — CoreProvisioningTaskTests (3 tests)
-- Created `inovatx_context/inovatx_task_3_2_1_traceability.md` — traceability record mapping to PRD §4.1, UML §2/§7, Decision log D6/D7/D8
-- System check passes (0 issues); tasks.py imports verified OK
-- Tests require Redis broker/PostgreSQL not available in this environment
+### Phase 3 Activity 3.2 Tasks (all complete)
+- Task 3.2.1 — Celery task for Moodle user creation (`feature/T3.2.1`, commit `c1fda8a`)
+- Task 3.2.2 — Celery task for cohort creation and member assignment (`feature/T3.2.2`, commit `4797930`)
+- Task 3.2.3 — Retry and error handling for Moodle API failures (`feature/T3.2.3`, commit `6dfde4a`)
 
 ### Phase 3 Activity 3.1 Tasks (all complete)
 - Task 3.1.1 — Moodle user provisioning contract documented (`feature/T3.1.1`, commit `430cdc2`)
@@ -74,6 +49,7 @@ Last updated: 2026-11-07
 - Webhook endpoint CSRF-exempt; security via HMAC-SHA256 signature verification
 - `system_admin` excluded from Moodle provisioning (not a membership role)
 - Provisioning triggered by `payment.succeeded` webhook → license `pending` → `active`
+- JWT signing uses Django SECRET_KEY by default (JWT_SECRET_KEY env override)
 - Branch convention: one branch per task (`feature/T<phase>.<activity>.<task>`)
 
 ## Problems solved
@@ -94,12 +70,13 @@ Last updated: 2026-11-07
 - Task 3.2.1 complete — Celery task for Moodle user creation implemented
 - Task 3.2.2 complete — Celery task for cohort creation and member assignment implemented
 - Task 3.2.3 complete — Retry and error handling for Moodle API failures implemented
-- All work committed and pushed to `feature/T3.2.3` (commit pending)
+- Task 3.3.1 complete — SSO token generation in Django implemented
+- All work committed and pushed to `feature/T3.3.1` (commit pending)
 - Django dev server running at `http://127.0.0.1:8000`
 
 ## Next session starts with
 
-Task 3.3.1 — Build SSO token generation in Django.
+Task 3.3.2 — Build Moodle authentication plugin integration (Moodle-side PHP code), OR Task 3.3.3 — Verify end-to-end learning hub launch.
 
 ## Open questions
 
@@ -108,3 +85,4 @@ Task 3.3.1 — Build SSO token generation in Django.
 - Exact cohort naming convention for institutional orgs (deferred to Task 3.2.2)
 - Standard course group ID for individual enrollments (deferred to Task 3.2.2)
 - Task 1.2.2 RLS implementation still blocked on Django schema and PostgreSQL test environment
+- JWT secret key rotation strategy (deferred to operations)

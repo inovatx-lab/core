@@ -1203,3 +1203,109 @@ def individual_register(request):
         },
         status=201,
     )
+
+
+def sso_token_issuance(request):
+    """Issue a signed SSO JWT for Moodle learning hub launch.
+
+    Task 3.3.1: Build SSO token generation in Django.
+    Requires tenant context, active membership, and active license.
+    Returns signed JWT with user identity, cohort authorization, and expiry.
+    """
+    import time
+    import jwt
+
+    from django.conf import settings
+
+    correlation_id = _extract_correlation_id(request)
+    ctx = getattr(request, "tenant_context", None)
+    if ctx is None:
+        return _error_response(
+            500, "internal_context_missing", "Tenant context not established", correlation_id
+        )
+
+    organization = ctx["organization"]
+    user_profile = ctx["user_profile"]
+    is_system_admin = ctx["is_system_admin"]
+
+    # Reject system_admin (not provisioned to Moodle)
+    if is_system_admin:
+        return _error_response(
+            403,
+            "provisioning_not_allowed",
+            "System admins are not provisioned to Moodle",
+            correlation_id,
+        )
+
+    # Require active license for the organization
+    try:
+        license_record = SubscriptionLicense.objects.get(
+            organization=organization, product_code=SubscriptionProductCode.EDTECH_LMS
+        )
+    except SubscriptionLicense.DoesNotExist:
+        return _error_response(
+            403,
+            "license_not_found",
+            "No active EDTECH_LMS license for organization",
+            correlation_id,
+        )
+
+    if license_record.status != LicenseStatus.ACTIVE:
+        return _error_response(
+            403,
+            "license_not_active",
+            f"License status is {license_record.status}, must be active",
+            correlation_id,
+        )
+
+    # Build cohort IDs list from license.moodle_cohort_id
+    cohort_ids = []
+    if license_record.moodle_cohort_id:
+        cohort_ids = [license_record.moodle_cohort_id]
+
+    # Build role codes list
+    role_codes = list(
+        user_profile.role_assignments.values_list("role_code", flat=True)
+    )
+
+    # Construct JWT payload
+    now = int(time.time())
+    exp = now + settings.JWT_EXPIRATION_DELTA_SECONDS
+
+    jwt_payload = {
+        "iss": settings.JWT_ISSUER,
+        "aud": settings.JWT_AUDIENCE,
+        "sub": str(user_profile.user.id),
+        "user_id": str(user_profile.user.id),
+        "organization_id": str(organization.id),
+        "organization_name": organization.name,
+        "organization_type": organization.org_type,
+        "cohort_ids": cohort_ids,
+        "roles": role_codes,
+        "iat": now,
+        "exp": exp,
+    }
+
+    try:
+        token = jwt.encode(jwt_payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    except Exception as exc:
+        logger.error("JWT encoding failed: %s", exc)
+        return _error_response(
+            500, "token_issuance_failed", "Failed to issue SSO token", correlation_id
+        )
+
+    return JsonResponse(
+        {
+            "data": {
+                "access_token": token,
+                "token_type": "Bearer",
+                "expires_in": settings.JWT_EXPIRATION_DELTA_SECONDS,
+                "organization_id": str(organization.id),
+                "organization_name": organization.name,
+                "cohort_ids": cohort_ids,
+                "roles": role_codes,
+            },
+            "correlation_id": str(correlation_id),
+        },
+        status=200,
+    )

@@ -133,3 +133,10 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 # Moodle API configuration (Task 3.1.1 / Task 3.2.1 provisioning)
 MOODLE_API_URL = os.environ.get("MOODLE_API_URL", "")
 MOODLE_TOKEN = os.environ.get("MOODLE_TOKEN", "")
+
+# JWT SSO configuration (Task 3.3.1: SSO token generation)
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", SECRET_KEY)
+JWT_ALGORITHM = "HS256"
+JWT_ISSUER = "inovatax-django-core"
+JWT_AUDIENCE = "inovatax-moodle-lms"
+JWT_EXPIRATION_DELTA_SECONDS = int(os.environ.get("JWT_EXPIRATION_DELTA_SECONDS", 86400))  # 24 hours

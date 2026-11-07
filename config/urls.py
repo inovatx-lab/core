@@ -107,4 +107,10 @@ urlpatterns = [
         views.parent_child_delete,
         name="parent-child-delete",
     ),
+    # SSO token issuance (Task 3.3.1)
+    path(
+        "api/v1/sso/token/",
+        views.sso_token_issuance,
+        name="sso-token-issuance",
+    ),
 ]

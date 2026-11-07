@@ -314,7 +314,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
 ### Activity 3.3: Implement SSO launch and Moodle access
 - Task 3.3.1: Build SSO token generation in Django.
   - Deliverable: JWT issuance endpoint/service
-  - Evidence: valid token generation
+  - Evidence: `POST /api/v1/sso/token/` endpoint in `core/views.py`; JWT settings in `config/base_settings.py`; URL route in `config/urls.py`; PyJWT added to `requirements.txt`; `CoreSSOTokenIssuanceTests` (4 tests: success, unauthenticated, inactive license, no license) in `core/tests.py`; System check passes (0 issues). Completion review pending.
+  - Evidence location: `core/views.py`, `config/urls.py`, `config/base_settings.py`, `requirements.txt`, `core/tests.py`, `inovatx_context/inovatx_task_3_3_1_traceability.md`.
 - Task 3.3.2: Build Moodle authentication plugin integration.
   - Deliverable: Moodle auth bridge
   - Evidence: valid login and redirect test

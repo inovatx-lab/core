@@ -1769,3 +1769,82 @@ class CoreRetryAndErrorHandlingTests(TestCase):
             self.assertIsNotNone(dlq_entry)
             self.assertEqual(dlq_entry.status, "pending")
 
+
+class CoreSSOTokenIssuanceTests(TestCase):
+    """Tests for Task 3.3.1: SSO token generation in Django."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="sso_user", password="test-password"
+        )
+        self.organization = Organization.objects.create(
+            name="SSO Test School",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.user,
+            organization=self.organization,
+            phone_number="+256700000500",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.profile, role_code=MembershipRoleCode.STUDENT
+        )
+        self.license = SubscriptionLicense.objects.create(
+            organization=self.organization,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=50,
+            status=LicenseStatus.ACTIVE,
+            moodle_cohort_id="cohort-123",
+        )
+
+    def test_sso_token_issuance_success(self):
+        """SSO token issuance succeeds with active license."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("sso-token-issuance"),
+            content_type="application/json",
+            **self._headers(org_id=self.organization.id),
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("access_token", data["data"])
+        self.assertEqual(data["data"]["organization_id"], str(self.organization.id))
+        self.assertEqual(data["data"]["organization_name"], "SSO Test School")
+        self.assertIn("cohort-123", data["data"]["cohort_ids"])
+        self.assertIn("student", data["data"]["roles"])
+        self.assertEqual(data["data"]["token_type"], "Bearer")
+
+    def test_sso_token_issuance_unauthenticated(self):
+        """SSO token issuance requires authentication."""
+        response = self.client.post(
+            reverse("sso-token-issuance"),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_sso_token_issuance_inactive_license(self):
+        """SSO token issuance rejects inactive license."""
+        self.license.status = LicenseStatus.SUSPENDED
+        self.license.save()
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("sso-token-issuance"),
+            content_type="application/json",
+            **self._headers(org_id=self.organization.id),
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("license_not_active", response.json()["errors"][0]["code"])
+
+    def test_sso_token_issuance_no_license(self):
+        """SSO token issuance rejects missing license."""
+        self.license.delete()
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("sso-token-issuance"),
+            content_type="application/json",
+            **self._headers(org_id=self.organization.id),
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("license_not_found", response.json()["errors"][0]["code"])
+
