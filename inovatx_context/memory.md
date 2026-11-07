@@ -1,4 +1,4 @@
-# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.3, Activity 3.3 Task 3.3.1
+# Memory — INOVATX Phase 3 Activity 3.2 Tasks 3.2.1–3.2.3, Activity 3.3 Tasks 3.3.1–3.3.2
 
 Last updated: 2026-11-07
 
@@ -18,6 +18,19 @@ Last updated: 2026-11-07
 - Added `CoreSSOTokenIssuanceTests` (4 tests: success, unauthenticated, inactive license, no license)
 - Created `inovatx_context/inovatx_task_3_3_1_traceability.md` — traceability record
 - System check passes (0 issues)
+
+### Phase 3 Activity 3.3 Task 3.3.2 — Build Moodle Authentication Plugin Integration
+- Created `moodle_auth_plugin_spec.php` — Moodle auth plugin specification (PHP):
+  - `auth_inovatx_sso` class extending Moodle's `plugin_auth`
+  - JWT validation: verifies iss, aud, exp, signature using shared secret (Django SECRET_KEY or Moodle password salt)
+  - Moodle user find/create: looks up by username (user_id from JWT), creates new user if not found
+  - Cohort assignment: assigns user to Moodle cohorts based on JWT cohort_ids
+  - Session creation: `complete_user_login()` to create Moodle session
+  - Redirect logic: sends user to course interface at `learn.inovatx.com`
+  - Error handling: invalid/expired JWT → false, missing claims → false, cross-tenant mismatch → false
+  - Correlation ID propagation support
+- Created `inovatx_context/inovatx_task_3_3_2_traceability.md` — traceability record mapping to Task 3.3.1 JWT contract, PRD §4.1, UML §2/§7
+- Moodle-side PHP code (not Django Core — Moodle is a separate PHP application)
 
 ### Phase 3 Activity 3.2 Tasks (all complete)
 - Task 3.2.1 — Celery task for Moodle user creation (`feature/T3.2.1`, commit `c1fda8a`)
@@ -71,7 +84,8 @@ Last updated: 2026-11-07
 - Task 3.2.2 complete — Celery task for cohort creation and member assignment implemented
 - Task 3.2.3 complete — Retry and error handling for Moodle API failures implemented
 - Task 3.3.1 complete — SSO token generation in Django implemented
-- All work committed and pushed to `feature/T3.3.1` (commit pending)
+- Task 3.3.2 complete — Moodle authentication plugin specification documented
+- All work committed and pushed to `feature/T3.3.2` (commit pending)
 - Django dev server running at `http://127.0.0.1:8000`
 
 ## Next session starts with

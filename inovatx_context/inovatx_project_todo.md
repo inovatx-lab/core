@@ -318,7 +318,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
   - Evidence location: `core/views.py`, `config/urls.py`, `config/base_settings.py`, `requirements.txt`, `core/tests.py`, `inovatx_context/inovatx_task_3_3_1_traceability.md`.
 - Task 3.3.2: Build Moodle authentication plugin integration.
   - Deliverable: Moodle auth bridge
-  - Evidence: valid login and redirect test
+  - Evidence: `moodle_auth_plugin_spec.php` — Moodle auth plugin specification (PHP): JWT validation (iss/aud/exp/signature), Moodle user find/create, cohort assignment, session creation, redirect logic, error handling (400/401/403), correlation ID propagation; `inovatx_context/inovatx_task_3_3_2_traceability.md` — traceability record mapping to Task 3.3.1 JWT contract, PRD §4.1, UML §2/§7; Moodle-side PHP code (not Django Core). Completion review pending.
+  - Evidence location: `moodle_auth_plugin_spec.php`, `inovatx_context/inovatx_task_3_3_2_traceability.md`.
 - Task 3.3.3: Verify the end-to-end learning hub launch for a first user.
   - Deliverable: successful learning-hub launch path
   - Evidence: end-to-end smoke test
