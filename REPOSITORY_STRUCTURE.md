@@ -24,10 +24,12 @@ INOVEXA/
 │   ├── __init__.py
 │   ├── admin.py
 │   ├── apps.py
+│   ├── celery.py            # Task 3.2.1 Celery app configuration
 │   ├── models.py
-│   ├── permissions.py     # Task 2.1.3 RBAC permission enforcement
+│   ├── permissions.py       # Task 2.1.3 RBAC permission enforcement
+│   ├── tasks.py             # Task 3.2.1 Celery task for Moodle user creation
 │   ├── tests.py
-│   ├── views.py           # Task 2.1.3 CRUD views with permission enforcement
+│   ├── views.py             # Task 2.1.3 CRUD views with permission enforcement
 │   └── migrations/
 │       └── __init__.py
 ├── docker-compose.yml           # Phase 0 planning skeleton; not runnable
@@ -79,8 +81,10 @@ INOVEXA/
     ├── inovatx_task_2_3_2_traceability.md
     ├── inovatx_task_2_3_3_traceability.md
 ├── inovatx_task_3_1_1_traceability.md
-     ├── inovatx_task_3_1_3_traceability.md
-     ├── inovatx_uml.md
+    ├── inovatx_task_3_1_2_traceability.md
+    ├── inovatx_task_3_1_3_traceability.md
+    ├── inovatx_task_3_2_1_traceability.md
+    ├── inovatx_uml.md
     ├── memory.md                 # Session handoff only; not a project source of truth
     └── docx/
         ├── INOVEXA Core PRD.docx

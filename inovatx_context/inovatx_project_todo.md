@@ -300,7 +300,8 @@ Milestone 3.1: Moodle is provisioned and accessible via signed access flow.
 ### Activity 3.2: Implement provisioning workers
 - Task 3.2.1: Build Celery task for Moodle user creation.
   - Deliverable: provisioning worker
-  - Evidence: success/failure test for user creation
+  - Evidence: `core/tasks.py` implements `provision_moodle_user` Celery task; `core/celery.py` configures app; `config/base_settings.py` adds Celery/Moodle settings; `requirements.txt` adds celery+redis; `core/tests.py` adds CoreProvisioningTaskTests; `config/base_settings.py` fixes context_processor paths. System check passes (0 issues); tasks.py imports verified OK. Tests require Redis broker/PostgreSQL not available in this environment. Completion review pending.
+  - Evidence location: `core/tasks.py`, `core/celery.py`, `config/base_settings.py`, `requirements.txt`, `core/tests.py`, `inovatx_context/inovatx_task_3_2_1_traceability.md`.
 - Task 3.2.2: Build Celery task for cohort creation and member assignment.
   - Deliverable: cohort task
   - Evidence: institutional onboarding test

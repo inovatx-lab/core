@@ -119,3 +119,17 @@ TEMPLATES = [
         },
     },
 ]
+
+# Celery configuration (Task 3.2.1: Moodle user provisioning worker)
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# Moodle API configuration (Task 3.1.1 / Task 3.2.1 provisioning)
+MOODLE_API_URL = os.environ.get("MOODLE_API_URL", "")
+MOODLE_TOKEN = os.environ.get("MOODLE_TOKEN", "")

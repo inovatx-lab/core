@@ -21,6 +21,7 @@ from .models import (
     SubscriptionProductCode,
     UserProfile,
 )
+from .tasks import provision_moodle_user
 
 
 class CoreModelTests(TestCase):
@@ -1490,3 +1491,79 @@ class CoreParentChildTests(TestCase):
             **self._headers(org_id=self.org.id),
         )
         self.assertEqual(response.status_code, 404)
+
+
+class CoreProvisioningTaskTests(TestCase):
+    """Tests for Task 3.2.1: Celery task for Moodle user creation."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="provision_user", password="test-password"
+        )
+        self.organization = Organization.objects.create(
+            name="Test School",
+            org_type=OrganizationType.SCHOOL,
+            status=OrganizationStatus.ACTIVE,
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.user,
+            organization=self.organization,
+            phone_number="+256700000100",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=self.profile, role_code=MembershipRoleCode.STUDENT
+        )
+        self.license = SubscriptionLicense.objects.create(
+            organization=self.organization,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=50,
+            status=LicenseStatus.ACTIVE,
+        )
+
+    def test_provision_moodle_user_invalid_uuid(self):
+        """Task rejects invalid UUID input."""
+        result = provision_moodle_user.delay(
+            organization_id="not-a-uuid",
+            user_id=str(self.user.id),
+            license_id=str(self.license.id),
+        )
+        self.assertEqual(result.get()["status"], "failed")
+        self.assertEqual(result.get()["error"], "invalid_uuid")
+
+    def test_provision_moodle_user_missing_organization(self):
+        """Task fails when organization does not exist."""
+        result = provision_moodle_user.delay(
+            organization_id="00000000-0000-0000-0000-000000000000",
+            user_id=str(self.user.id),
+            license_id=str(self.license.id),
+        )
+        self.assertEqual(result.get()["status"], "failed")
+
+    def test_provision_moodle_user_individual_org_type(self):
+        """Individual org type skips cohort creation."""
+        org = Organization.objects.create(
+            name="Individual User",
+            org_type=OrganizationType.INDIVIDUAL,
+            status=OrganizationStatus.ACTIVE,
+        )
+        prof = UserProfile.objects.create(
+            user=self.user,
+            organization=org,
+            phone_number="+256700000200",
+        )
+        OrganizationMembershipRole.objects.create(
+            user_profile=prof, role_code=MembershipRoleCode.STUDENT
+        )
+        lic = SubscriptionLicense.objects.create(
+            organization=org,
+            product_code=SubscriptionProductCode.EDTECH_LMS,
+            seat_capacity=1,
+            status=LicenseStatus.ACTIVE,
+        )
+
+        result = provision_moodle_user.delay(
+            organization_id=str(org.id),
+            user_id=str(self.user.id),
+            license_id=str(lic.id),
+        )
+        self.assertEqual(result.get()["status"], "success")
